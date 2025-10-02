@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "caniuse-lite": "^1.0.30001746"
+  }
+}
