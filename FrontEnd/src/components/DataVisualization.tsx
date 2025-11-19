@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, RefreshCw, Database, Info } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PredictiveMaintenanceAPI, { generateSampleSensorData } from "@/lib/api";
 import { TurbofanRecord, ensureDatasetAvailable, getRandomRecord, extractSensorData, getDatasetStats } from "@/lib/dataset";
 import {
@@ -83,6 +83,10 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
   const [datasetStats, setDatasetStats] = useState<any>(null);
   const [isLoadingDataset, setIsLoadingDataset] = useState(false);
   const [useSensorData, setUseSensorData] = useState(false);
+  
+  // Refs to store previous values for comparison
+  const prevSensorDataRef = useRef<any>(null);
+  const prevSystemDataRef = useRef<any>(null);
 
   // Load dataset on component mount
   useEffect(() => {
@@ -132,15 +136,24 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
                 timestamp: Date.now()
               };
               
-              setTimeSeriesData(prev => {
-                const updated = [...prev, newDataPoint].slice(-20);
-                return updated;
-              });
+              // Only update if there are significant changes
+              const prevDataPoint = timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1] : null;
+              const shouldUpdate = !prevDataPoint || 
+                Math.abs(newDataPoint.rul - prevDataPoint.rul) > 0.1 ||
+                Math.abs(newDataPoint.anomaly - prevDataPoint.anomaly) > 0.001 ||
+                Math.abs(newDataPoint.temperature - prevDataPoint.temperature) > 0.1;
               
-              setData(prev => {
-                const newData = [...prev.slice(1), newDataPoint];
-                return newData;
-              });
+              if (shouldUpdate) {
+                setTimeSeriesData(prev => {
+                  const updated = [...prev, newDataPoint].slice(-20);
+                  return updated;
+                });
+                
+                setData(prev => {
+                  const newData = [...prev.slice(1), newDataPoint];
+                  return newData;
+                });
+              }
               return;
             }
           } catch (sensorError) {
@@ -169,15 +182,24 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
             timestamp: Date.now()
           };
           
-          setTimeSeriesData(prev => {
-            const updated = [...prev, newDataPoint].slice(-20);
-            return updated;
-          });
+          // Only update if there are significant changes
+          const prevDataPoint = timeSeriesData.length > 0 ? timeSeriesData[timeSeriesData.length - 1] : null;
+          const shouldUpdate = !prevDataPoint || 
+            Math.abs(newDataPoint.rul - prevDataPoint.rul) > 0.1 ||
+            Math.abs(newDataPoint.anomaly - prevDataPoint.anomaly) > 0.001 ||
+            Math.abs(newDataPoint.temperature - prevDataPoint.temperature) > 0.1;
           
-          setData(prev => {
-            const newData = [...prev.slice(1), newDataPoint];
-            return newData;
-          });
+          if (shouldUpdate) {
+            setTimeSeriesData(prev => {
+              const updated = [...prev, newDataPoint].slice(-20);
+              return updated;
+            });
+            
+            setData(prev => {
+              const newData = [...prev.slice(1), newDataPoint];
+              return newData;
+            });
+          }
         } catch (error) {
           console.error('Live data update failed:', error);
           setData(generateMockData());
@@ -189,18 +211,25 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
       }, 2000);
     }
     return () => clearInterval(interval);
-  }, [isLive, connectionStatus, dataset]);
+  }, [isLive, connectionStatus, dataset, timeSeriesData]);
 
   useEffect(() => {
-    // Initialize with real data if available
+    // Initialize with real data if available and if it has changed significantly
     if (systemData?.success && connectionStatus === 'connected') {
-      const { predictions } = systemData;
-      const initialData = generateMockData().map((item, index) => ({
-        ...item,
-        rul: index === 6 ? (predictions.rul?.value || predictions.rul?.rul_prediction || item.rul) : item.rul,
-        anomaly: index === 6 ? Math.abs(predictions.anomaly?.score || predictions.anomaly?.anomaly_score || item.anomaly) : item.anomaly
-      }));
-      setData(initialData);
+      // Check if systemData has changed significantly
+      const hasChanged = !prevSystemDataRef.current || 
+        JSON.stringify(systemData) !== JSON.stringify(prevSystemDataRef.current);
+      
+      if (hasChanged) {
+        prevSystemDataRef.current = systemData;
+        const { predictions } = systemData;
+        const initialData = generateMockData().map((item, index) => ({
+          ...item,
+          rul: index === 6 ? (predictions.rul?.value || predictions.rul?.rul_prediction || item.rul) : item.rul,
+          anomaly: index === 6 ? Math.abs(predictions.anomaly?.score || predictions.anomaly?.anomaly_score || item.anomaly) : item.anomaly
+        }));
+        setData(initialData);
+      }
     }
   }, [systemData, connectionStatus]);
 
