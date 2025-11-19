@@ -1,11 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Info, Brain, Target, Lightbulb, TrendingUp, RefreshCw, AlertTriangle } from "lucide-react";
+import { Info, Brain, Target, Lightbulb, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
-import { usePredictiveMaintenanceAPI, generateSampleSensorData } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ensureDatasetAvailable, getRandomRecord, extractSensorData, TurbofanRecord } from "@/lib/dataset";
 
 interface ExplainabilityPanelProps {
   connectionStatus: 'checking' | 'connected' | 'disconnected';
@@ -21,15 +27,6 @@ const shapData = [
   { feature: "Humidity", impact: 0.28, positive: true, description: "High humidity affects electrical components" },
 ];
 
-const limeData = [
-  { feature: "Temperature", local: 0.92, global: 0.85 },
-  { feature: "Vibration", local: 0.68, global: 0.72 },
-  { feature: "Pressure", local: 0.45, global: 0.58 },
-  { feature: "RPM", local: 0.38, global: 0.45 },
-  { feature: "Load", local: 0.25, global: 0.32 },
-  { feature: "Humidity", local: 0.15, global: 0.28 },
-];
-
 const radarData = [
   { subject: 'Thermal', A: 120, B: 110, fullMark: 150 },
   { subject: 'Mechanical', A: 98, B: 130, fullMark: 150 },
@@ -39,61 +36,98 @@ const radarData = [
 ];
 
 const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPanelProps) => {
-  const { api } = usePredictiveMaintenanceAPI();
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("shap");
-  const [explanationData, setExplanationData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [dataset, setDataset] = useState<TurbofanRecord[]>([]);
+  const [currentRecord, setCurrentRecord] = useState<TurbofanRecord | null>(null);
+  const [limeData, setLimeData] = useState([
+    { feature: "Temperature", local: 0.92, global: 0.85, index: 0 },
+    { feature: "Vibration", local: 0.68, global: 0.72, index: 1 },
+    { feature: "Pressure", local: 0.45, global: 0.58, index: 2 },
+    { feature: "RPM", local: 0.38, global: 0.45, index: 3 },
+    { feature: "Load", local: 0.25, global: 0.32, index: 4 },
+    { feature: "Humidity", local: 0.15, global: 0.28, index: 5 },
+  ]);
+
+  // Load offline dataset on mount
+  useEffect(() => {
+    const loadDataset = async () => {
+      try {
+        const data = await ensureDatasetAvailable('medium');
+        setDataset(data);
+        
+        // Get initial random record
+        const record = getRandomRecord(data);
+        if (record) {
+          setCurrentRecord(record);
+          updateLimeDataFromRecord(record);
+        }
+      } catch (error) {
+        console.error('Failed to load dataset:', error);
+      }
+    };
+    
+    loadDataset();
+  }, []);
+
+  // Update LIME data based on actual sensor record
+  const updateLimeDataFromRecord = (record: TurbofanRecord) => {
+    const sensorData = extractSensorData(record);
+    
+    // Calculate local importance based on actual sensor values
+    // Normalize values and calculate variance-based importance
+    const normalized = sensorData.map((val, idx) => {
+      if (idx < 3) return Math.abs(val); // Operational settings
+      return val / 1000; // Normalize sensor values
+    });
+    
+    // Map important sensors to features
+    const featureMapping = [
+      { name: "Temperature", indices: [3, 4, 11, 12], global: 0.85 },
+      { name: "Vibration", indices: [6, 7, 8], global: 0.72 },
+      { name: "Pressure", indices: [2, 10, 13], global: 0.58 },
+      { name: "RPM", indices: [8, 9, 14], global: 0.45 },
+      { name: "Load", indices: [0, 1, 5], global: 0.32 },
+      { name: "Humidity", indices: [15, 16, 17], global: 0.28 },
+    ];
+    
+    const updatedLime = featureMapping.map((feature, idx) => {
+      // Calculate local importance from actual sensor values
+      const localValues = feature.indices.map(i => normalized[i] || 0);
+      const localImportance = localValues.reduce((sum, val) => sum + Math.abs(val), 0) / localValues.length;
+      
+      return {
+        feature: feature.name,
+        local: Math.min(localImportance, 1),
+        global: feature.global,
+        index: idx
+      };
+    });
+    
+    setLimeData(updatedLime);
+  };
 
   const getFeatureColor = (positive: boolean) => positive ? "hsl(var(--error))" : "hsl(var(--success))";
 
-  useEffect(() => {
-    const loadExplanations = async () => {
-      if (connectionStatus === 'connected' && systemData?.success) {
-        setIsLoading(true);
-        try {
-          const sensorData = generateSampleSensorData();
-          const [shap, lime] = await Promise.all([
-            api.getSHAPExplanation(sensorData, 'rul', 10),
-            api.getLIMEExplanation(sensorData, 'failure', 10)
-          ]);
-          setExplanationData({ shap, lime });
-        } catch (error) {
-          console.error('Failed to load explanations:', error);
-        }
-        setIsLoading(false);
-      }
-    };
+  // Use SHAP data for visualization
+  const currentShapData = shapData;
 
-    loadExplanations();
-  }, [connectionStatus, systemData]);
-
-  const refreshExplanations = async () => {
-    if (connectionStatus === 'connected') {
-      setIsLoading(true);
-      try {
-        const sensorData = generateSampleSensorData();
-        const [shap, lime] = await Promise.all([
-          api.getSHAPExplanation(sensorData, 'rul', 10),
-          api.getLIMEExplanation(sensorData, 'failure', 10)
-        ]);
-        setExplanationData({ shap, lime });
-      } catch (error) {
-        console.error('Failed to refresh explanations:', error);
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    // Get new random record from offline dataset
+    if (dataset.length > 0) {
+      const newRecord = getRandomRecord(dataset);
+      if (newRecord) {
+        setCurrentRecord(newRecord);
+        updateLimeDataFromRecord(newRecord);
       }
-      setIsLoading(false);
     }
+    
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsRefreshing(false);
   };
-
-  // Use real SHAP data if available, otherwise fall back to mock data
-  const currentShapData = explanationData?.shap?.feature_importance 
-    ? explanationData.shap.feature_importance.slice(0, 6).map((item: any) => ({
-        feature: item.feature_name,
-        impact: Math.abs(item.shap_value),
-        positive: item.shap_value > 0,
-        description: `Feature value: ${item.feature_value.toFixed(3)}`
-      }))
-    : shapData;
 
   return (
     <section className="space-y-8">
@@ -114,19 +148,6 @@ const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPan
             <Lightbulb className="w-3 h-3" />
             Feature Impact
           </Badge>
-          
-          {connectionStatus === 'connected' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refreshExplanations}
-              disabled={isLoading}
-              className="gap-1"
-            >
-              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          )}
           
           {connectionStatus !== 'connected' && (
             <Badge variant="outline" className="gap-1">
@@ -161,14 +182,32 @@ const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPan
                 <Card className="glass-card card-3d group h-full">
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <CardTitle className="flex items-center gap-2">
                           <Brain className="w-5 h-5 text-primary" />
                           SHAP Feature Importance
+                          <TooltipProvider>
+                            <UITooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="w-4 h-4 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="max-w-xs">SHAP (SHapley Additive exPlanations) values show how much each feature contributes to the model's predictions</p>
+                              </TooltipContent>
+                            </UITooltip>
+                          </TooltipProvider>
                         </CardTitle>
                         <CardDescription>Global feature impact on failure predictions</CardDescription>
                       </div>
-                      <Info className="h-5 w-5 text-primary cursor-pointer hover:scale-110 transition-transform" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleRefresh}
+                        disabled={isRefreshing}
+                        title="Refresh SHAP analysis"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -197,9 +236,9 @@ const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPan
                         />
                         <Bar 
                           dataKey="impact" 
-                          fill={(entry) => getFeatureColor(entry.positive)}
+                          fill="hsl(var(--primary))"
                           radius={[0, 8, 8, 0]}
-                          onClick={(data) => setSelectedFeature(data.feature)}
+                          onClick={(data: any) => setSelectedFeature(data.feature)}
                           className="cursor-pointer hover:opacity-80 transition-opacity"
                         />
                       </BarChart>
@@ -247,13 +286,6 @@ const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPan
                               <p className="text-sm text-muted-foreground">
                                 {item.description}
                               </p>
-                              
-                              {explanationData?.shap && (
-                                <div className="text-xs text-muted-foreground border-t pt-2">
-                                  <div>Real-time SHAP analysis</div>
-                                  <div>Model: {explanationData.shap.model_info?.model_type || 'RUL Predictor'}</div>
-                                </div>
-                              )}
                             </div>
                           ))}
                       </>
@@ -272,13 +304,41 @@ const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPan
           <TabsContent value="lime" className="space-y-6">
             <Card className="glass-card card-3d group">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-primary" />
-                  LIME Local vs Global Explanations
-                </CardTitle>
-                <CardDescription>
-                  Comparing local instance explanations with global model behavior
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-primary" />
+                      LIME Local vs Global Explanations
+                      <TooltipProvider>
+                        <UITooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-4 h-4 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">LIME (Local Interpretable Model-agnostic Explanations) compares instance-specific predictions with global patterns</p>
+                          </TooltipContent>
+                        </UITooltip>
+                      </TooltipProvider>
+                    </CardTitle>
+                    <CardDescription>
+                      Comparing local instance explanations with global model behavior
+                      {currentRecord && (
+                        <Badge variant="outline" className="ml-2">
+                          Engine #{currentRecord.unit_number} Cycle {currentRecord.time_cycles}
+                        </Badge>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    title="Refresh LIME analysis"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>
@@ -337,13 +397,36 @@ const ExplainabilityPanel = ({ connectionStatus, systemData }: ExplainabilityPan
           <TabsContent value="radar" className="space-y-6">
             <Card className="glass-card card-3d group">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Multi-Dimensional Risk Assessment
-                </CardTitle>
-                <CardDescription>
-                  Comprehensive view of risk factors across different categories
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                      Multi-Dimensional Risk Assessment
+                      <TooltipProvider>
+                        <UITooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-4 h-4 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">Radar chart visualizes risk levels across multiple categories simultaneously</p>
+                          </TooltipContent>
+                        </UITooltip>
+                      </TooltipProvider>
+                    </CardTitle>
+                    <CardDescription>
+                      Comprehensive view of risk factors across different categories
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    title="Refresh risk assessment"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={400}>

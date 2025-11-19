@@ -5,30 +5,97 @@ import DataVisualization from "@/components/DataVisualization";
 import ExplainabilityPanel from "@/components/ExplainabilityPanel";
 import AlertCard from "@/components/AlertCard";
 import DashboardSidebar from "@/components/DashboardSidebar";
-import { Activity, Gauge, AlertTriangle, CheckCircle } from "lucide-react";
+import { Activity, Gauge, AlertTriangle, CheckCircle, RefreshCw, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
-import { usePredictiveMaintenanceAPI, generateSampleSensorData } from "@/lib/api";
+import PredictiveMaintenanceAPI, { generateSampleSensorData } from "@/lib/api";
 
 const Index = () => {
-  const { api, testConnection, getCompletePrediction } = usePredictiveMaintenanceAPI();
+  const api = new PredictiveMaintenanceAPI();
   const [systemData, setSystemData] = useState<any>(null);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [isLoading, setIsLoading] = useState(true);
+  const [useSensorData, setUseSensorData] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState<number>(15); // Default 15 seconds
+  const [systemStartTime, setSystemStartTime] = useState<number>(() => {
+    // Check if we have a stored start time
+    const storedStartTime = localStorage.getItem('systemStartTime');
+    if (storedStartTime) {
+      return parseInt(storedStartTime, 10);
+    }
+    // Otherwise, set and store the current time
+    const now = Date.now();
+    localStorage.setItem('systemStartTime', now.toString());
+    return now;
+  });
+  const [uptime, setUptime] = useState<string>('0h 0m');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Calculate system uptime
+  useEffect(() => {
+    const calculateUptime = () => {
+      const now = Date.now();
+      const diff = now - systemStartTime;
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setUptime(`${hours}h ${minutes}m ${seconds}s`);
+    };
+    
+    calculateUptime();
+    const interval = setInterval(calculateUptime, 1000);
+    
+    return () => clearInterval(interval);
+  }, [systemStartTime]);
 
   useEffect(() => {
     const initializeSystem = async () => {
       setIsLoading(true);
       
       // Test connection
-      const connection = await testConnection();
+      const connection = await api.testConnection();
       setConnectionStatus(connection.connected ? 'connected' : 'disconnected');
       
       if (connection.connected) {
-        // Get initial predictions
-        const sensorData = generateSampleSensorData();
-        const predictions = await getCompletePrediction(sensorData, 'MACHINE-001');
-        setSystemData(predictions);
+        // Try to get sensor-based predictions first
+        try {
+          const sensorPredictions = await api.getPredictionsFromSensors();
+          if (sensorPredictions.sensor_stats.active_sensors > 0) {
+            setUseSensorData(true);
+            setSystemData({
+              success: true,
+              predictions: {
+                rul: sensorPredictions.predictions.rul,
+                risk: {
+                  risk_class: sensorPredictions.predictions.failure_risk?.class || 'Medium',
+                  risk_probabilities: sensorPredictions.predictions.failure_risk?.probabilities || { Low: 0.3, Medium: 0.5, High: 0.2 },
+                  risk_score: sensorPredictions.predictions.failure_risk?.confidence || 0.7
+                },
+                anomaly: {
+                  is_anomaly: sensorPredictions.predictions.anomaly?.is_anomaly || false,
+                  anomaly_score: sensorPredictions.predictions.anomaly?.score || 0.1,
+                  severity: sensorPredictions.predictions.anomaly?.is_anomaly ? 'High' : 'Low'
+                }
+              },
+              sensor_stats: sensorPredictions.sensor_stats
+            });
+          } else {
+            // Fallback to sample data if no sensors active
+            const sensorData = generateSampleSensorData();
+            const predictions = await api.getCompletePrediction(sensorData, 'MACHINE-001');
+            setSystemData(predictions);
+          }
+        } catch (error) {
+          console.error('Failed to get sensor predictions, using sample data:', error);
+          const sensorData = generateSampleSensorData();
+          const predictions = await api.getCompletePrediction(sensorData, 'MACHINE-001');
+          setSystemData(predictions);
+        }
       }
       
       setIsLoading(false);
@@ -36,20 +103,141 @@ const Index = () => {
 
     initializeSystem();
     
-    // Set up periodic updates
-    const interval = setInterval(async () => {
+    // Set up periodic updates with configurable interval
+    if (refreshInterval === 0) {
+      // Real-time mode: continuous updates with requestAnimationFrame
+      let isRunning = true;
+      
+      const realtimeUpdate = async () => {
+        if (!isRunning || connectionStatus !== 'connected') return;
+        
+        try {
+          if (useSensorData) {
+            const sensorPredictions = await api.getPredictionsFromSensors();
+            setSystemData({
+              success: true,
+              predictions: {
+                rul: sensorPredictions.predictions.rul,
+                risk: {
+                  risk_class: sensorPredictions.predictions.failure_risk?.class || 'Medium',
+                  risk_probabilities: sensorPredictions.predictions.failure_risk?.probabilities || { Low: 0.3, Medium: 0.5, High: 0.2 },
+                  risk_score: sensorPredictions.predictions.failure_risk?.confidence || 0.7
+                },
+                anomaly: {
+                  is_anomaly: sensorPredictions.predictions.anomaly?.is_anomaly || false,
+                  anomaly_score: sensorPredictions.predictions.anomaly?.score || 0.1,
+                  severity: sensorPredictions.predictions.anomaly?.is_anomaly ? 'High' : 'Low'
+                }
+              },
+              sensor_stats: sensorPredictions.sensor_stats
+            });
+          } else {
+            const sensorData = generateSampleSensorData();
+            const predictions = await api.getCompletePrediction(sensorData, 'MACHINE-001');
+            setSystemData(predictions);
+          }
+        } catch (error) {
+          console.error('Real-time update failed:', error);
+        }
+        
+        // Schedule next update immediately
+        if (isRunning) {
+          setTimeout(realtimeUpdate, 100); // Minimal delay for browser performance
+        }
+      };
+      
+      realtimeUpdate();
+      
+      return () => {
+        isRunning = false;
+      };
+    } else {
+      // Interval-based updates
+      const interval = setInterval(async () => {
       if (connectionStatus === 'connected') {
-        const sensorData = generateSampleSensorData();
-        const predictions = await getCompletePrediction(sensorData, 'MACHINE-001');
-        setSystemData(predictions);
+        try {
+          if (useSensorData) {
+            // Use real sensor data
+            const sensorPredictions = await api.getPredictionsFromSensors();
+            setSystemData({
+              success: true,
+              predictions: {
+                rul: sensorPredictions.predictions.rul,
+                risk: {
+                  risk_class: sensorPredictions.predictions.failure_risk?.class || 'Medium',
+                  risk_probabilities: sensorPredictions.predictions.failure_risk?.probabilities || { Low: 0.3, Medium: 0.5, High: 0.2 },
+                  risk_score: sensorPredictions.predictions.failure_risk?.confidence || 0.7
+                },
+                anomaly: {
+                  is_anomaly: sensorPredictions.predictions.anomaly?.is_anomaly || false,
+                  anomaly_score: sensorPredictions.predictions.anomaly?.score || 0.1,
+                  severity: sensorPredictions.predictions.anomaly?.is_anomaly ? 'High' : 'Low'
+                }
+              },
+              sensor_stats: sensorPredictions.sensor_stats
+            });
+          } else {
+            // Use sample data
+            const sensorData = generateSampleSensorData();
+            const predictions = await api.getCompletePrediction(sensorData, 'MACHINE-001');
+            setSystemData(predictions);
+          }
+        } catch (error) {
+          console.error('Update failed:', error);
+        }
       }
-    }, 30000); // Update every 30 seconds
+      }, refreshInterval * 1000); // Convert to milliseconds
 
-    return () => clearInterval(interval);
-  }, []);
+      return () => clearInterval(interval);
+    }
+  }, [connectionStatus, useSensorData, refreshInterval]);
+
+  // Reset system uptime
+  const handleResetUptime = () => {
+    const now = Date.now();
+    localStorage.setItem('systemStartTime', now.toString());
+    setSystemStartTime(now);
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (connectionStatus === 'connected') {
+        if (useSensorData) {
+          const sensorPredictions = await api.getPredictionsFromSensors();
+          setSystemData({
+            success: true,
+            predictions: {
+              rul: sensorPredictions.predictions.rul,
+              risk: {
+                risk_class: sensorPredictions.predictions.failure_risk?.class || 'Medium',
+                risk_probabilities: sensorPredictions.predictions.failure_risk?.probabilities || {},
+                risk_score: sensorPredictions.predictions.failure_risk?.confidence || 0.7
+              },
+              anomaly: {
+                is_anomaly: sensorPredictions.predictions.anomaly?.is_anomaly || false,
+                anomaly_score: sensorPredictions.predictions.anomaly?.score || 0.1,
+                severity: sensorPredictions.predictions.anomaly?.is_anomaly ? 'High' : 'Low'
+              }
+            },
+            sensor_stats: sensorPredictions.sensor_stats
+          });
+        } else {
+          const sensorData = generateSampleSensorData();
+          const predictions = await api.getCompletePrediction(sensorData, 'MACHINE-001');
+          setSystemData(predictions);
+        }
+      }
+    } catch (error) {
+      console.error('Manual refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const getStatusCardData = () => {
-    if (!systemData?.success) {
+    if (!systemData?.success || !systemData?.predictions) {
       // Show demo/fallback data instead of loading states
       return {
         engineStatus: { 
@@ -60,11 +248,11 @@ const Index = () => {
           percentage: "100%" 
         },
         rulPrediction: { 
-          value: connectionStatus === 'checking' ? "Loading..." : "82 hrs", 
+          value: connectionStatus === 'checking' ? "Loading..." : "Calculating...", 
           status: "success" as const, 
-          description: connectionStatus === 'checking' ? "Initializing model..." : "Simulated prediction data", 
+          description: connectionStatus === 'checking' ? "Initializing model..." : "Waiting for sensor data", 
           trend: "down" as const, 
-          percentage: "15%" 
+          percentage: "0%" 
         },
         riskLevel: { 
           value: connectionStatus === 'checking' ? "Analyzing..." : "Medium", 
@@ -84,38 +272,53 @@ const Index = () => {
     }
 
     const { predictions } = systemData;
-    const rul = predictions.rul;
-    const risk = predictions.risk;
-    const anomaly = predictions.anomaly;
+    
+    // Extract RUL data
+    const rulValue = predictions.rul?.value ?? predictions.rul?.rul_prediction ?? 0;
+    const rulRiskLevel = predictions.rul?.risk_level ?? 'Low';
+    const rulConfidence = predictions.rul?.confidence ?? 0.8;
+    
+    // Extract risk data
+    const riskClass = predictions.risk?.risk_class ?? predictions.failure_risk?.class ?? 'Low Risk';
+    const riskProbs = predictions.risk?.risk_probabilities ?? predictions.failure_risk?.probabilities ?? { 'Low Risk': 0.8, 'Medium Risk': 0.15, 'High Risk': 0.05 };
+    const riskScore = predictions.risk?.risk_score ?? predictions.failure_risk?.confidence ?? 0.3;
+    
+    // Extract anomaly data
+    const isAnomaly = predictions.anomaly?.is_anomaly ?? false;
+    const anomalyScore = predictions.anomaly?.anomaly_score ?? predictions.anomaly?.score ?? 0.1;
+    const anomalySeverity = predictions.anomaly?.severity ?? (isAnomaly ? 'High' : 'Low');
 
     return {
       engineStatus: {
-        value: connectionStatus === 'connected' ? "Running" : "Offline",
-        status: connectionStatus === 'connected' ? "success" as const : "error" as const,
-        description: connectionStatus === 'connected' ? "All systems operational" : "Connection lost",
+        value: systemData?.sensor_stats ? `${systemData.sensor_stats.active_sensors} Sensors Active` : "Running",
+        status: (systemData?.sensor_stats?.critical_sensors ?? 0) > 0 ? "error" as const : 
+                (systemData?.sensor_stats?.warning_sensors ?? 0) > 0 ? "warning" as const : "success" as const,
+        description: systemData?.sensor_stats ? 
+          `${systemData.sensor_stats.critical_sensors} critical, ${systemData.sensor_stats.warning_sensors} warning` :
+          "All systems operational",
         trend: "stable" as const,
-        percentage: "0%"
+        percentage: systemData?.sensor_stats ? `${systemData.sensor_stats.health_score}%` : "100%"
       },
       rulPrediction: {
-        value: `${Math.round(rul.rul_prediction)} hrs`,
-        status: rul.risk_level === 'High' ? "error" as const : rul.risk_level === 'Medium' ? "warning" as const : "success" as const,
-        description: `Confidence: ${Math.round(rul.confidence * 100)}%`,
-        trend: rul.risk_level === 'High' ? "down" as const : "stable" as const,
-        percentage: `${Math.round((1 - rul.confidence) * 100)}%`
+        value: rulValue > 0 ? `${Math.round(rulValue)} hrs` : "N/A",
+        status: rulRiskLevel === 'High' ? "error" as const : rulRiskLevel === 'Medium' ? "warning" as const : "success" as const,
+        description: `Confidence: ${Math.round(rulConfidence * 100)}%`,
+        trend: rulRiskLevel === 'High' ? "down" as const : "stable" as const,
+        percentage: `${Math.round((1 - rulConfidence) * 100)}%`
       },
       riskLevel: {
-        value: risk.risk_class,
-        status: risk.risk_class === 'High' ? "error" as const : risk.risk_class === 'Medium' ? "warning" as const : "success" as const,
-        description: `Risk Score: ${risk.risk_score.toFixed(2)}`,
-        trend: risk.risk_class === 'High' ? "up" as const : "stable" as const,
-        percentage: `${Math.round(risk.risk_probabilities[risk.risk_class] * 100)}%`
+        value: riskClass,
+        status: riskClass.includes('High') ? "error" as const : riskClass.includes('Medium') ? "warning" as const : "success" as const,
+        description: `Risk Score: ${riskScore.toFixed(2)}`,
+        trend: riskClass.includes('High') ? "up" as const : "stable" as const,
+        percentage: `${Math.round((riskProbs[riskClass] ?? riskScore) * 100)}%`
       },
       anomalyStatus: {
-        value: anomaly.is_anomaly ? `${anomaly.severity} Risk` : "Normal",
-        status: anomaly.is_anomaly ? (anomaly.severity === 'High' ? "error" as const : "warning" as const) : "success" as const,
-        description: anomaly.is_anomaly ? `Score: ${anomaly.anomaly_score.toFixed(3)}` : "No anomalies detected",
-        trend: anomaly.is_anomaly ? "up" as const : "stable" as const,
-        percentage: `${Math.round(anomaly.anomaly_score * 100)}%`
+        value: isAnomaly ? `${anomalySeverity} Risk` : "Normal",
+        status: isAnomaly ? (anomalySeverity === 'High' ? "error" as const : "warning" as const) : "success" as const,
+        description: isAnomaly ? `Score: ${Math.abs(anomalyScore).toFixed(3)}` : "No anomalies detected",
+        trend: isAnomaly ? "up" as const : "stable" as const,
+        percentage: `${Math.round(Math.abs(anomalyScore) * 100)}%`
       }
     };
   };
@@ -130,13 +333,93 @@ const Index = () => {
       </div>
       
       <div className="container mx-auto px-4 py-16">
+        {/* Refresh Interval Control Bar */}
+        <Card className="glass-card mb-8">
+          <CardContent className="py-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* System Uptime */}
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">System Uptime</p>
+                  <p className="text-lg font-bold text-primary">{uptime}</p>
+                </div>
+              </div>
+              
+              {/* Refresh Interval Selector */}
+              <div className="flex items-center gap-3">
+                <RefreshCw className="w-5 h-5 text-primary" />
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium whitespace-nowrap">Update Interval:</label>
+                  <Select
+                    value={refreshInterval.toString()}
+                    onValueChange={(value) => setRefreshInterval(Number(value))}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Real-time (Instant)</SelectItem>
+                      <SelectItem value="5">5 seconds</SelectItem>
+                      <SelectItem value="10">10 seconds</SelectItem>
+                      <SelectItem value="15">15 seconds</SelectItem>
+                      <SelectItem value="30">30 seconds</SelectItem>
+                      <SelectItem value="60">1 minute</SelectItem>
+                      <SelectItem value="120">2 minutes</SelectItem>
+                      <SelectItem value="300">5 minutes</SelectItem>
+                      <SelectItem value="600">10 minutes</SelectItem>
+                      <SelectItem value="900">15 minutes</SelectItem>
+                      <SelectItem value="1800">30 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Manual Refresh Button */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing || connectionStatus !== 'connected'}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
+                </Button>
+                <Button
+                  onClick={handleResetUptime}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  Reset Uptime
+                </Button>
+              </div>
+              
+              {/* Connection Status Badge */}
+              <Badge
+                variant={connectionStatus === 'connected' ? 'default' : connectionStatus === 'checking' ? 'secondary' : 'destructive'}
+                className="gap-1"
+              >
+                {connectionStatus === 'connected' && <CheckCircle className="w-3 h-3" />}
+                {connectionStatus === 'checking' && <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />}
+                {connectionStatus === 'disconnected' && <AlertTriangle className="w-3 h-3" />}
+                {connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'checking' ? 'Connecting' : 'Disconnected'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+        
         <div className="grid lg:grid-cols-4 gap-8">
           <div className="lg:col-span-3 space-y-16">
             {/* Status Cards Section */}
             <section id="dashboard" className="space-y-6 animate-fade-in">
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-bold">Real-Time System Status</h2>
-                <p className="text-muted-foreground">Live monitoring of critical machine health indicators</p>
+                <p className="text-muted-foreground">
+                  {useSensorData 
+                    ? `Live monitoring from ${systemData?.sensor_stats?.active_sensors || 0} active sensors` 
+                    : "Live monitoring of critical machine health indicators"}
+                </p>
                 {connectionStatus === 'checking' && (
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
@@ -152,7 +435,9 @@ const Index = () => {
                 {connectionStatus === 'connected' && (
                   <div className="flex items-center justify-center gap-2 text-sm text-success">
                     <CheckCircle className="w-4 h-4" />
-                    Connected to live backend
+                    {useSensorData 
+                      ? `Connected - Using ${systemData?.sensor_stats?.active_sensors || 0} Real Sensors` 
+                      : "Connected to live backend"}
                   </div>
                 )}
               </div>
@@ -204,9 +489,34 @@ const Index = () => {
                 systemData={systemData}
                 onDataRefresh={async () => {
                   if (connectionStatus === 'connected') {
-                    const sensorData = generateSampleSensorData();
-                    const predictions = await getCompletePrediction(sensorData, 'MACHINE-001');
-                    setSystemData(predictions);
+                    try {
+                      if (useSensorData) {
+                        const sensorPredictions = await api.getPredictionsFromSensors();
+                        setSystemData({
+                          success: true,
+                          predictions: {
+                            rul: sensorPredictions.predictions.rul,
+                            risk: {
+                              risk_class: sensorPredictions.predictions.failure_risk?.class || 'Medium',
+                              risk_probabilities: sensorPredictions.predictions.failure_risk?.probabilities || {},
+                              risk_score: sensorPredictions.predictions.failure_risk?.confidence || 0.7
+                            },
+                            anomaly: {
+                              is_anomaly: sensorPredictions.predictions.anomaly?.is_anomaly || false,
+                              anomaly_score: sensorPredictions.predictions.anomaly?.score || 0.1,
+                              severity: sensorPredictions.predictions.anomaly?.is_anomaly ? 'High' : 'Low'
+                            }
+                          },
+                          sensor_stats: sensorPredictions.sensor_stats
+                        });
+                      } else {
+                        const sensorData = generateSampleSensorData();
+                        const predictions = await api.getCompletePrediction(sensorData, 'MACHINE-001');
+                        setSystemData(predictions);
+                      }
+                    } catch (error) {
+                      console.error('Refresh failed:', error);
+                    }
                   }
                 }}
               />
@@ -222,54 +532,129 @@ const Index = () => {
             <section id="alerts" className="space-y-6">
               <div className="text-center space-y-2">
                 <h2 className="text-3xl font-bold">Maintenance Alerts</h2>
-                <p className="text-muted-foreground">Critical notifications and system warnings</p>
+                <p className="text-muted-foreground">
+                  {useSensorData 
+                    ? `Real-time notifications based on ${systemData?.sensor_stats?.active_sensors || 0} active sensors` 
+                    : "Critical notifications and system warnings"}
+                </p>
               </div>
 
               <div className="space-y-4">
-                <AlertCard
-                  level="error"
-                  title="Critical: Immediate Action Required"
-                  message="Temperature exceeds safety threshold (95°C). Automatic shutdown has been initiated to prevent equipment damage. Engineering team has been notified and is responding to the incident."
-                  timestamp="2 minutes ago"
-                  machineId="MACHINE-001"
-                  priority="critical"
-                  onAcknowledge={() => console.log('Critical alert acknowledged')}
-                  onDismiss={() => console.log('Critical alert dismissed')}
-                  onViewDetails={() => console.log('View critical alert details')}
-                />
-                <AlertCard
-                  level="warning"
-                  title="Maintenance Recommended"
-                  message="RUL prediction indicates maintenance needed within 48 hours. Vibration levels have increased by 15% over the past week, suggesting bearing wear."
-                  timestamp="1 hour ago"
-                  machineId="MACHINE-002"
-                  priority="high"
-                  onAcknowledge={() => console.log('Warning alert acknowledged')}
-                  onViewDetails={() => console.log('View warning alert details')}
-                />
-                <AlertCard
-                  level="success"
-                  title="Maintenance Completed Successfully"
-                  message="Scheduled maintenance successfully completed. All systems are now operating within normal parameters. Next maintenance due in 30 days."
-                  timestamp="3 hours ago"
-                  machineId="MACHINE-003"
-                  priority="low"
-                />
-                <AlertCard
-                  level="info"
-                  title="System Performance Update"
-                  message="Weekly performance report: Overall equipment effectiveness increased by 3.2%. Anomaly detection accuracy improved to 97.8%."
-                  timestamp="6 hours ago"
-                  priority="medium"
-                  onViewDetails={() => console.log('View performance report')}
-                />
+                {/* Dynamic Alerts based on actual sensor/system data */}
+                {systemData?.sensor_stats?.critical_sensors > 0 && (
+                  <AlertCard
+                    level="error"
+                    title="Critical: Immediate Action Required"
+                    message={`${systemData.sensor_stats.critical_sensors} critical sensor${systemData.sensor_stats.critical_sensors > 1 ? 's' : ''} detected! System health at ${systemData.sensor_stats.health_score}%. Multiple sensors are showing critical readings indicating immediate maintenance required.`}
+                    timestamp="Just now"
+                    machineId="SENSOR-NETWORK"
+                    priority="critical"
+                    onAcknowledge={() => console.log('Critical alert acknowledged')}
+                    onDismiss={() => console.log('Critical alert dismissed')}
+                    onViewDetails={() => window.location.href = '/sensors'}
+                  />
+                )}
+                
+                {systemData?.predictions?.rul?.value < 24 && (
+                  <AlertCard
+                    level="error"
+                    title="Low RUL Warning: Maintenance Required"
+                    message={`Remaining Useful Life is critically low at ${Math.round(systemData.predictions.rul.value)} hours. Immediate maintenance scheduling recommended to prevent equipment failure.`}
+                    timestamp="2 minutes ago"
+                    machineId="PRODUCTION-LINE"
+                    priority="critical"
+                    onAcknowledge={() => console.log('RUL alert acknowledged')}
+                    onViewDetails={() => console.log('View RUL details')}
+                  />
+                )}
+                
+                {systemData?.predictions?.anomaly?.is_anomaly && (
+                  <AlertCard
+                    level="warning"
+                    title="Anomaly Detected"
+                    message={`Abnormal pattern detected with score ${Math.abs(systemData.predictions.anomaly.score || systemData.predictions.anomaly.anomaly_score).toFixed(3)}. System behavior deviating from normal operational parameters.`}
+                    timestamp="5 minutes ago"
+                    machineId="ANOMALY-DETECTION"
+                    priority="high"
+                    onAcknowledge={() => console.log('Anomaly alert acknowledged')}
+                    onViewDetails={() => console.log('View anomaly details')}
+                  />
+                )}
+                
+                {systemData?.sensor_stats?.warning_sensors > 2 && (
+                  <AlertCard
+                    level="warning"
+                    title="Maintenance Recommended"
+                    message={`${systemData.sensor_stats.warning_sensors} sensors showing warning status. Preventive maintenance recommended within 48 hours to avoid degradation.`}
+                    timestamp="1 hour ago"
+                    machineId="SENSOR-NETWORK"
+                    priority="high"
+                    onAcknowledge={() => console.log('Warning alert acknowledged')}
+                    onViewDetails={() => window.location.href = '/sensors'}
+                  />
+                )}
+                
+                {systemData?.predictions?.rul?.value >= 24 && systemData?.predictions?.rul?.value < 72 && (
+                  <AlertCard
+                    level="warning"
+                    title="Scheduled Maintenance Approaching"
+                    message={`RUL prediction indicates maintenance needed within ${Math.round(systemData.predictions.rul.value)} hours. Plan maintenance window to minimize downtime.`}
+                    timestamp="2 hours ago"
+                    machineId="MAINTENANCE-SCHEDULER"
+                    priority="medium"
+                    onAcknowledge={() => console.log('Scheduled maintenance acknowledged')}
+                    onViewDetails={() => console.log('View maintenance schedule')}
+                  />
+                )}
+                
+                {systemData?.sensor_stats?.critical_sensors === 0 && systemData?.sensor_stats?.warning_sensors <= 2 && (
+                  <AlertCard
+                    level="success"
+                    title="All Systems Normal"
+                    message={`All sensors operating within normal parameters. System health at ${systemData?.sensor_stats?.health_score || 95}%. ${systemData?.sensor_stats?.active_sensors || 0} sensors active and monitoring.`}
+                    timestamp="Just now"
+                    machineId="HEALTH-MONITOR"
+                    priority="low"
+                  />
+                )}
+                
+                {connectionStatus === 'connected' && useSensorData && (
+                  <AlertCard
+                    level="info"
+                    title="Real-Time Sensor Network Active"
+                    message={`Connected to live sensor network. ${systemData?.sensor_stats?.active_sensors || 0} active sensors providing real-time data across production lines.`}
+                    timestamp="5 minutes ago"
+                    priority="medium"
+                    onViewDetails={() => window.location.href = '/sensors'}
+                  />
+                )}
+                
+                {/* Fallback static alerts if no real data */}
+                {(!systemData || !systemData.success) && (
+                  <>
+                    <AlertCard
+                      level="info"
+                      title="Demo Mode Active"
+                      message="System is running in demonstration mode. Connect to backend to see real sensor data and predictions."
+                      timestamp="Now"
+                      priority="medium"
+                    />
+                    <AlertCard
+                      level="success"
+                      title="System Ready"
+                      message="Predictive maintenance system initialized and ready for sensor connection."
+                      timestamp="10 minutes ago"
+                      priority="low"
+                    />
+                  </>
+                )}
               </div>
             </section>
           </div>
 
           {/* Sidebar */}
           <aside className="lg:col-span-1">
-            <DashboardSidebar />
+            <DashboardSidebar sensorData={systemData} />
           </aside>
         </div>
       </div>

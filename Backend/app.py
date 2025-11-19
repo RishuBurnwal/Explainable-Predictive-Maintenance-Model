@@ -8,7 +8,7 @@ from flask_cors import CORS
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -17,6 +17,7 @@ from api.prediction_api import prediction_bp
 from api.explainability_api import explainability_bp
 from api.anomaly_api import anomaly_bp
 from api.data_api import data_bp
+from api.sensor_api import sensor_bp
 from utils.config import Config
 from utils.logger import setup_logger
 
@@ -26,7 +27,7 @@ def create_app():
     app.config.from_object(Config)
     
     # Enable CORS for frontend communication
-    CORS(app, origins=["http://localhost:8080", "http://localhost:3000"])
+    CORS(app, origins=["http://localhost:8080", "http://localhost:8081", "http://localhost:3000"])
     
     # Setup logging
     setup_logger(app)
@@ -36,6 +37,7 @@ def create_app():
     app.register_blueprint(explainability_bp, url_prefix='/api/v1/explainability')
     app.register_blueprint(anomaly_bp, url_prefix='/api/v1/anomaly')
     app.register_blueprint(data_bp, url_prefix='/api/v1/data')
+    app.register_blueprint(sensor_bp, url_prefix='/api/v1/sensors')
     
     @app.route('/')
     def health_check():
@@ -44,12 +46,13 @@ def create_app():
             'status': 'healthy',
             'service': 'Predictive Maintenance API',
             'version': '2.1.0',
-            'timestamp': datetime.now(datetime.timezone.utc).isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'endpoints': {
                 'prediction': '/api/v1/prediction',
                 'explainability': '/api/v1/explainability', 
                 'anomaly': '/api/v1/anomaly',
-                'data': '/api/v1/data'
+                'data': '/api/v1/data',
+                'sensors': '/api/v1/sensors'
             }
         })
     
@@ -64,14 +67,14 @@ def create_app():
             return jsonify({
                 'status': 'operational',
                 'models': models_status,
-                'timestamp': datetime.now(datetime.timezone.utc).isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             })
         except Exception as e:
             app.logger.error(f"Status check failed: {str(e)}")
             return jsonify({
                 'status': 'error',
                 'message': str(e),
-                'timestamp': datetime.now(datetime.timezone.utc).isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }), 500
     
     @app.errorhandler(404)

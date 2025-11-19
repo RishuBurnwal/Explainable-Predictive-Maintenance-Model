@@ -2,10 +2,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Activity, AlertTriangle, RefreshCw, Database } from "lucide-react";
+import { TrendingUp, TrendingDown, Activity, AlertTriangle, RefreshCw, Database, Info } from "lucide-react";
 import { useState, useEffect } from "react";
-import { usePredictiveMaintenanceAPI, generateSampleSensorData } from "@/lib/api";
+import PredictiveMaintenanceAPI, { generateSampleSensorData } from "@/lib/api";
 import { TurbofanRecord, ensureDatasetAvailable, getRandomRecord, extractSensorData, getDatasetStats } from "@/lib/dataset";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DataVisualizationProps {
   connectionStatus: 'checking' | 'connected' | 'disconnected';
@@ -25,13 +31,38 @@ const generateMockData = () => [
 ];
 
 const getRiskDistribution = (systemData: any) => {
-  if (systemData?.success && systemData.predictions?.risk) {
-    const { risk_probabilities } = systemData.predictions.risk;
-    return [
-      { name: 'Low Risk', value: Math.round(risk_probabilities.Low * 100), color: 'hsl(var(--success))' },
-      { name: 'Medium Risk', value: Math.round(risk_probabilities.Medium * 100), color: 'hsl(var(--warning))' },
-      { name: 'High Risk', value: Math.round(risk_probabilities.High * 100), color: 'hsl(var(--error))' }
-    ];
+  if (systemData?.success && systemData.predictions) {
+    // Try to extract risk probabilities from different possible data structures
+    const riskData = systemData.predictions.failure_risk || systemData.predictions.risk;
+    
+    if (riskData?.probabilities) {
+      const probs = riskData.probabilities;
+      
+      // Handle different probability formats
+      let lowRisk = 0, medRisk = 0, highRisk = 0;
+      
+      if (typeof probs === 'object') {
+        // Extract values regardless of key naming
+        lowRisk = probs['Low Risk'] || probs['Low'] || probs.low || 0;
+        medRisk = probs['Medium Risk'] || probs['Medium'] || probs.medium || 0;
+        highRisk = probs['High Risk'] || probs['High'] || probs.high || 0;
+      }
+      
+      // Normalize to percentages if needed
+      const total = lowRisk + medRisk + highRisk;
+      if (total > 0 && total <= 1) {
+        // Probabilities are 0-1, convert to percentages
+        lowRisk *= 100;
+        medRisk *= 100;
+        highRisk *= 100;
+      }
+      
+      return [
+        { name: 'Low Risk', value: Math.round(lowRisk), color: 'hsl(var(--success))' },
+        { name: 'Medium Risk', value: Math.round(medRisk), color: 'hsl(var(--warning))' },
+        { name: 'High Risk', value: Math.round(highRisk), color: 'hsl(var(--error))' }
+      ];
+    }
   }
   // Default/fallback distribution
   return [
@@ -42,7 +73,7 @@ const getRiskDistribution = (systemData: any) => {
 };
 
 const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: DataVisualizationProps) => {
-  const { api } = usePredictiveMaintenanceAPI();
+  const api = new PredictiveMaintenanceAPI();
   const [data, setData] = useState(generateMockData());
   const [isLive, setIsLive] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<'rul' | 'anomaly' | 'temperature'>('rul');
@@ -51,6 +82,7 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
   const [dataset, setDataset] = useState<TurbofanRecord[]>([]);
   const [datasetStats, setDatasetStats] = useState<any>(null);
   const [isLoadingDataset, setIsLoadingDataset] = useState(false);
+  const [useSensorData, setUseSensorData] = useState(false);
 
   // Load dataset on component mount
   useEffect(() => {
@@ -76,7 +108,46 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
     if (isLive && connectionStatus === 'connected') {
       interval = setInterval(async () => {
         try {
-          // Use real dataset records or generate sample data
+          // Try to use real sensor data first
+          try {
+            const [sensorPredictions, realTimeSensors] = await Promise.all([
+              api.getPredictionsFromSensors(),
+              api.getAllSensors(true) // Get only active sensors
+            ]);
+            
+            if (sensorPredictions.sensor_stats.active_sensors > 0) {
+              setUseSensorData(true);
+              
+              // Calculate average temperature from actual temperature sensors
+              const tempSensors = realTimeSensors.filter((s: any) => s.type === 'temperature');
+              const avgTemp = tempSensors.length > 0 
+                ? tempSensors.reduce((sum: number, s: any) => sum + s.current_value, 0) / tempSensors.length
+                : 70;
+              
+              const newDataPoint = {
+                time: new Date().toLocaleTimeString(),
+                rul: sensorPredictions.predictions.rul?.value || 80,
+                anomaly: Math.abs(sensorPredictions.predictions.anomaly?.score || 0.1),
+                temperature: avgTemp,
+                timestamp: Date.now()
+              };
+              
+              setTimeSeriesData(prev => {
+                const updated = [...prev, newDataPoint].slice(-20);
+                return updated;
+              });
+              
+              setData(prev => {
+                const newData = [...prev.slice(1), newDataPoint];
+                return newData;
+              });
+              return;
+            }
+          } catch (sensorError) {
+            console.log('Sensor data not available, using dataset');
+          }
+          
+          // Fallback to dataset or sample data
           let sensorData: number[];
           if (dataset.length > 0) {
             const randomRecord = getRandomRecord(dataset);
@@ -93,30 +164,26 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
           const newDataPoint = {
             time: new Date().toLocaleTimeString(),
             rul: rul.rul_prediction,
-            anomaly: anomaly.anomaly_score,
-            temperature: 65 + Math.random() * 20, // Simulated temperature
+            anomaly: Math.abs(anomaly.anomaly_score),
+            temperature: 65 + Math.random() * 20,
             timestamp: Date.now()
           };
           
           setTimeSeriesData(prev => {
-            const updated = [...prev, newDataPoint].slice(-20); // Keep last 20 points
+            const updated = [...prev, newDataPoint].slice(-20);
             return updated;
           });
           
-          // Update chart data
-          setData(prev => prev.map((item, index) => {
-            if (index === prev.length - 1) {
-              return newDataPoint;
-            }
-            return item;
-          }));
+          setData(prev => {
+            const newData = [...prev.slice(1), newDataPoint];
+            return newData;
+          });
         } catch (error) {
           console.error('Live data update failed:', error);
-          setData(generateMockData()); // Fallback to mock data
+          setData(generateMockData());
         }
-      }, 3000); // Reduced to 3 seconds for more responsive updates
+      }, 3000);
     } else if (isLive) {
-      // Fallback to mock data when disconnected
       interval = setInterval(() => {
         setData(generateMockData());
       }, 2000);
@@ -130,8 +197,8 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
       const { predictions } = systemData;
       const initialData = generateMockData().map((item, index) => ({
         ...item,
-        rul: index === 6 ? predictions.rul.rul_prediction : item.rul,
-        anomaly: index === 6 ? predictions.anomaly.anomaly_score : item.anomaly
+        rul: index === 6 ? (predictions.rul?.value || predictions.rul?.rul_prediction || item.rul) : item.rul,
+        anomaly: index === 6 ? Math.abs(predictions.anomaly?.score || predictions.anomaly?.anomaly_score || item.anomaly) : item.anomaly
       }));
       setData(initialData);
     }
@@ -167,9 +234,11 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
   const getQuickStats = () => {
     if (systemData?.success) {
       const { predictions } = systemData;
+      const rulValue = predictions.rul?.value || predictions.rul?.rul_prediction || 82;
+      const anomalyValue = predictions.anomaly?.score || predictions.anomaly?.anomaly_score || 0.1;
       return {
-        avgRul: `${Math.round(predictions.rul.rul_prediction)} hrs`,
-        anomalies: predictions.anomaly.anomaly_score.toFixed(2),
+        avgRul: `${Math.round(rulValue)} hrs`,
+        anomalies: Math.abs(anomalyValue).toFixed(2),
         tempAvg: `${Math.round(65 + Math.random() * 20)}°C` // Simulated temperature
       };
     }
@@ -198,12 +267,12 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
           >
             <div className={`w-2 h-2 rounded-full ${
               isLive && connectionStatus === 'connected' 
-                ? 'bg-success animate-pulse' 
+                ? useSensorData ? 'bg-green-500 animate-pulse' : 'bg-success animate-pulse'
                 : isLive 
                   ? 'bg-warning animate-pulse' 
                   : 'bg-muted-foreground'
             }`} />
-            {isLive ? (connectionStatus === 'connected' ? 'Live Data' : 'Demo Mode') : 'Start Live Feed'}
+            {isLive ? (connectionStatus === 'connected' ? (useSensorData ? 'Live Sensor Data' : 'Live Data') : 'Demo Mode') : 'Start Live Feed'}
           </Button>
           
           <Button
@@ -264,19 +333,49 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
           <Card className="glass-card card-3d group h-full">
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <CardTitle className="flex items-center gap-2">
                     <currentMetric.icon className="w-5 h-5" />
                     {currentMetric.title}
+                    <TooltipProvider>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-4 h-4 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">{currentMetric.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {selectedMetric === 'rul' && 'Tracks remaining operational hours before maintenance required'}
+                            {selectedMetric === 'anomaly' && 'Monitors abnormal patterns indicating potential failures'}
+                            {selectedMetric === 'temperature' && 'Real-time thermal monitoring from active temperature sensors'}
+                          </p>
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
                   </CardTitle>
                   <CardDescription>{currentMetric.description}</CardDescription>
                 </div>
-                {isLive && (
-                  <Badge variant="outline" className="animate-pulse">
-                    <div className="w-2 h-2 bg-success rounded-full mr-2" />
-                    Live
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {isLive && (
+                    <Badge variant="outline" className="animate-pulse">
+                      <div className="w-2 h-2 bg-success rounded-full mr-2" />
+                      Live
+                    </Badge>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={async () => {
+                      setIsRefreshing(true);
+                      await onDataRefresh();
+                      setIsRefreshing(false);
+                    }}
+                    disabled={connectionStatus !== 'connected' || isRefreshing}
+                    title="Refresh chart data"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -329,8 +428,37 @@ const DataVisualization = ({ connectionStatus, systemData, onDataRefresh }: Data
         <div className="space-y-6">
           <Card className="glass-card card-3d group">
             <CardHeader>
-              <CardTitle>Risk Distribution</CardTitle>
-              <CardDescription>Current system risk levels</CardDescription>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2">
+                    Risk Distribution
+                    <TooltipProvider>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-4 h-4 text-muted-foreground cursor-help hover:text-primary transition-colors" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">Distribution of risk levels across the production system based on AI predictions</p>
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
+                  </CardTitle>
+                  <CardDescription>Current system risk levels</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={async () => {
+                    setIsRefreshing(true);
+                    await onDataRefresh();
+                    setIsRefreshing(false);
+                  }}
+                  disabled={connectionStatus !== 'connected' || isRefreshing}
+                  title="Refresh risk data"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>

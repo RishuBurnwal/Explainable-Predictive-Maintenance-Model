@@ -114,8 +114,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Rishu Burnwal**
 
-- 📧 Email: [rishu.burnwal@gmail.com](mailto:rishu.burnwal@gmail.com)
-- 🔗 LinkedIn: [linkedin.com/in/rishu-burnwal](https://linkedin.com/in/rishu-burnwal)
+- 📧 Email: [rishu.burnwal@gmail.com](mailto:rishuburnwal9525@gmail.com)
+- 🔗 LinkedIn: [linkedin.com/in/rishu-burnwal](https://linkedin.com/in/rishuburnwal)
 - 🐙 GitHub: [github.com/rishuburnwal](https://github.com/rishuburnwal)
 - 🌐 Portfolio: [rishuburnwal.dev](https://rishuburnwal.dev)
 

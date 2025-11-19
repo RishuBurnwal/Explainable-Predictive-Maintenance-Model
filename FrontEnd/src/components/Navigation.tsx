@@ -1,4 +1,4 @@
-import { Activity, Menu, X, BookOpen } from "lucide-react";
+import { Activity, Menu, X, BookOpen, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -44,6 +44,12 @@ const Navigation = () => {
     { name: "Alerts", id: "alerts" },
     { name: "About", id: "about" },
     { 
+      name: "Sensors", 
+      id: "sensors",
+      path: "/sensors",
+      icon: "sensors"
+    },
+    { 
       name: "Documentation", 
       id: "documentation",
       path: "/documentation"
@@ -75,6 +81,7 @@ const Navigation = () => {
                   className="relative text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-300 group flex items-center gap-1"
                 >
                   {item.name === 'Documentation' && <BookOpen className="h-4 w-4" />}
+                  {item.icon === 'sensors' && <Radio className="h-4 w-4" />}
                   <span className="relative z-10">{item.name}</span>
                   <div className="absolute inset-0 bg-primary/10 rounded-lg scale-0 group-hover:scale-100 transition-transform duration-300 -z-0"></div>
                   <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></div>
@@ -118,6 +125,7 @@ const Navigation = () => {
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {item.name === 'Documentation' && <BookOpen className="h-4 w-4" />}
+                    {item.icon === 'sensors' && <Radio className="h-4 w-4" />}
                     {item.name}
                   </Link>
                 ) : (
