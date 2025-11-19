@@ -13,10 +13,12 @@ Explainable Predictive Maintenance Model/
 │   │   │   ├── Navigation.tsx
 │   │   │   ├── StatusCard.tsx
 │   │   │   ├── DataVisualization.tsx
-│   │   │   └── ExplainabilityPanel.tsx
+│   │   │   ├── ExplainabilityPanel.tsx
+│   │   │   └── DashboardSidebar.tsx
 │   │   ├── pages/
 │   │   │   ├── Index.tsx
 │   │   │   ├── Documentation.tsx
+│   │   │   ├── Sensors.tsx
 │   │   │   └── ...
 │   │   ├── hooks/
 │   │   ├── utils/
@@ -26,6 +28,18 @@ Explainable Predictive Maintenance Model/
 │   ├── vite.config.ts
 │   └── README.md
 ├── Backend/
+│   ├── AI/
+│   │   ├── __init__.py
+│   │   ├── model_manager.py
+│   │   ├── pretrained_models.py
+│   │   └── sensor_manager.py
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── prediction_api.py
+│   │   ├── explainability_api.py
+│   │   ├── anomaly_api.py
+│   │   ├── sensor_api.py
+│   │   └── data_api.py
 │   ├── app.py
 │   ├── requirements.txt
 │   ├── models/
@@ -69,6 +83,36 @@ pip install -r requirements.txt
 PORT=5000
 NODE_ENV=development
 DATABASE_URL=your_database_connection_string
+SENSOR_UPDATE_INTERVAL=2
 ```
 
 2. Update the frontend configuration in `FrontEnd/vite.config.ts` if needed.
+
+## IoT Sensor Setup
+
+The system includes a simulation of 16 industrial sensors that automatically initialize when the backend starts. Sensors are organized across 4 production lines:
+
+1. **Turbofan Engines** (6 sensors)
+2. **Hydraulic Systems** (3 sensors)
+3. **Electric Motors** (3 sensors)
+4. **Quality Control & Cooling** (4 sensors)
+
+Sensors update every 2 seconds by default and can be controlled through the web interface at `/sensors`.
+
+## Running the System
+
+### Start Backend
+```bash
+cd Backend
+python app.py
+```
+
+### Start Frontend
+```bash
+cd FrontEnd
+npm run dev
+```
+
+### Access the Application
+- Main Dashboard: http://localhost:8080/
+- Sensors Page: http://localhost:8080/sensors

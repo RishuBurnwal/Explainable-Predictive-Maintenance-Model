@@ -33,6 +33,7 @@ The Explainable Predictive Maintenance Model, architected by **Rishu Burnwal**, 
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
 │  │  Prediction API │ │ Explainability  │ │  Data API       │   │
 │  │   (RUL/Risk)    │ │   API (SHAP)    │ │  (Management)   │   │
+│  │  Sensor API     │ │                 │ │                 │   │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                                 │
@@ -77,6 +78,8 @@ The Explainable Predictive Maintenance Model, architected by **Rishu Burnwal**, 
 - **ExplainabilityPanel.tsx**: SHAP/LIME visualizations
 - **StatusCard.tsx**: Real-time system metrics
 - **Documentation.tsx**: GitHub-style documentation viewer
+- **Sensors.tsx**: IoT sensor monitoring dashboard
+- **DashboardSidebar.tsx**: Navigation sidebar
 
 **Features:**
 - Responsive design (mobile-first)
@@ -85,6 +88,7 @@ The Explainable Predictive Maintenance Model, architected by **Rishu Burnwal**, 
 - Error boundaries
 - Loading states
 - Toast notifications
+- IoT sensor integration and control
 
 ### Backend Layer (Flask Python)
 
@@ -105,6 +109,9 @@ POST /api/v1/predict/failure     # Failure classification
 POST /api/v1/anomaly/detect      # Anomaly detection
 POST /api/v1/explain/shap        # SHAP explanations
 POST /api/v1/explain/lime        # LIME explanations
+GET  /api/v1/sensors/sensors     # Get all sensors
+POST /api/v1/sensors/sensors/{id}/toggle # Toggle sensor
+GET  /api/v1/sensors/sensors/statistics # Network statistics
 ```
 
 **Architecture Patterns:**
@@ -261,6 +268,3 @@ Data:     PostgreSQL/MongoDB for persistence
 - Accessible and responsive
 
 This architecture provides a solid foundation for a production-ready predictive maintenance system with room for future enhancements and scaling.
-
-
-

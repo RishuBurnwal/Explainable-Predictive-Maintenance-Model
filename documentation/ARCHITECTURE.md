@@ -12,6 +12,7 @@ graph TD
     D <--> E[Model Registry]
     D <--> F[Feature Store]
     G[Data Sources] -->|ETL| F
+    H[IoT Sensors] -->|Real-time Data| B
 ```
 
 ## Component Breakdown
@@ -21,6 +22,7 @@ graph TD
 - **State Management**: React Context API with useReducer
 - **UI Components**: Built with Shadcn UI and Tailwind CSS
 - **Data Visualization**: Recharts for interactive charts and graphs
+- **IoT Dashboard**: Dedicated sensor monitoring page with real-time updates
 
 ### 2. Backend Layer
 - **API Gateway**: FastAPI for handling HTTP requests
@@ -30,11 +32,18 @@ graph TD
   - `/api/explain` - For model explanations
   - `/api/data` - For historical data retrieval
   - `/api/models` - For model management
+  - `/api/sensors` - For IoT sensor management
 
 ### 3. Data Layer
 - **Feature Store**: Stores preprocessed features for model inference
 - **Time-Series Database**: For storing sensor and prediction data
 - **Model Registry**: Version control for ML models
+
+### 4. IoT Layer
+- **Sensor Network**: 16 industrial sensors across 4 production lines
+- **Real-time Processing**: Live data streaming and processing
+- **Sensor Management**: Activation/deactivation controls
+- **Health Monitoring**: Status tracking for all sensors
 
 ## Data Flow
 

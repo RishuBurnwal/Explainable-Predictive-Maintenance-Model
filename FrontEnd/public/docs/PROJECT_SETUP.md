@@ -39,6 +39,7 @@ Explainable Predictive Maintenance Model/
 │   │   ├── pages/
 │   │   │   ├── Index.tsx                # Main dashboard
 │   │   │   ├── Documentation.tsx        # Documentation viewer
+│   │   │   ├── Sensors.tsx              # IoT sensor monitoring
 │   │   │   └── NotFound.tsx             # 404 page
 │   │   ├── lib/
 │   │   │   ├── api.ts                   # TypeScript API client
@@ -60,12 +61,14 @@ Explainable Predictive Maintenance Model/
 │   │   ├── __init__.py
 │   │   ├── model_manager.py             # Model loading/management
 │   │   ├── pretrained_models.py         # Model training scripts
+│   │   ├── sensor_manager.py            # IoT sensor management
 │   │   └── explainability.py           # SHAP/LIME implementations
 │   ├── api/                             # REST API Endpoints
 │   │   ├── __init__.py
 │   │   ├── prediction_api.py            # RUL/failure predictions
 │   │   ├── explainability_api.py        # SHAP/LIME endpoints
 │   │   ├── anomaly_api.py               # Anomaly detection
+│   │   ├── sensor_api.py                # IoT sensor endpoints
 │   │   └── data_api.py                  # Data management
 │   ├── data/                            # Data Management
 │   │   ├── sample_turbofan_data.py      # Dataset generator
@@ -100,6 +103,7 @@ Explainable Predictive Maintenance Model/
 │
 ├── models/                              # Pre-trained Models (backup)
 ├── documentation/                       # Additional docs
+├── IOT_SENSORS_GUIDE.md                 # IoT sensor documentation
 ├── PROJECT_SUMMARY.md                   # Project overview
 └── LICENSE                              # MIT License
 ```
@@ -166,7 +170,8 @@ npm run dev
 
 2. **Frontend Access:**
    - Open browser to `http://localhost:8080`
-   - Check connection status in the dashboard
+   - Check that the dashboard shows **"Connected"** status
+   - Navigate to `/sensors` to view the IoT sensor dashboard
 
 ## ⚙️ Configuration
 
@@ -270,6 +275,14 @@ POST /api/v1/anomaly/batch-detect   # Batch anomaly detection
 # Data Management
 POST /api/v1/data/generate-sample   # Generate test data
 POST /api/v1/data/validate          # Validate sensor data
+
+# IoT Sensor Management
+GET  /api/v1/sensors/sensors        # Get all sensors
+GET  /api/v1/sensors/sensors/{id}   # Get specific sensor
+POST /api/v1/sensors/sensors/{id}/toggle # Toggle sensor on/off
+GET  /api/v1/sensors/sensors/statistics # Network statistics
+GET  /api/v1/sensors/sensors/realtime-data # Real-time sensor data
+POST /api/v1/sensors/sensors/predict # AI predictions from sensors
 ```
 
 ### Frontend API Client Usage
@@ -294,6 +307,11 @@ const anomaly = await api.detectAnomaly(sensorData, 'MACHINE-001');
 // Explainability
 const shap = await api.getSHAPExplanation(sensorData, 'rul', 10);
 const lime = await api.getLIMEExplanation(sensorData, 'failure', 10);
+
+// IoT Sensors
+const sensors = await api.getAllSensors();
+const sensorStats = await api.getSensorStatistics();
+const toggleResult = await api.toggleSensor('SENSOR-ID');
 ```
 
 ## 🚀 Deployment
@@ -341,6 +359,7 @@ npm run test
 3. Verify explainability responses
 4. Test anomaly detection
 5. Validate frontend-backend integration
+6. Test IoT sensor functionality
 
 ## 📝 Development Guidelines
 
@@ -361,6 +380,11 @@ npm run test
    - Update model manager
    - Create training script
 
+4. **IoT Sensor:**
+   - Add to `AI/sensor_manager.py`
+   - Create API endpoints in `api/sensor_api.py`
+   - Add UI component in `src/pages/Sensors.tsx`
+
 ### Code Style
 
 - **Frontend:** TypeScript, Tailwind CSS, shadcn/ui
@@ -376,6 +400,7 @@ npm run test
 3. **Model loading fails:** Run `python setup.py` again
 4. **Frontend won't start:** Clear node_modules and reinstall
 5. **API connection fails:** Check backend is running on port 5000
+6. **Sensors not updating:** Check backend sensor manager
 
 ### Debug Mode
 

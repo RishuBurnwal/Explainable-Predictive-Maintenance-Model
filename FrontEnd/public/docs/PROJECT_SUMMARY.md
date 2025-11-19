@@ -34,6 +34,7 @@ The **Explainable Predictive Maintenance Model** is an enterprise-grade AI-power
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
 │  │  Prediction API │ │ Explainability  │ │  Anomaly API    │   │
 │  │   (RUL/Risk)    │ │   API (SHAP)    │ │  (Isolation)    │   │
+│  │  Sensor API     │ │                 │ │                 │   │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                                 │
@@ -62,6 +63,12 @@ The **Explainable Predictive Maintenance Model** is an enterprise-grade AI-power
 - Scikit-learn
 - XGBoost & LightGBM
 - SHAP & LIME
+
+### **IoT Integration**
+- Real-time sensor simulation (16 industrial sensors)
+- Sensor health monitoring
+- Live data streaming
+- Toggle controls for sensors
 
 ## 🧠 **Machine Learning Models**
 
@@ -95,6 +102,13 @@ The **Explainable Predictive Maintenance Model** is an enterprise-grade AI-power
 - Multiple dataset support
 - Real-time validation
 - Preprocessing pipeline
+
+### **IoT Sensor Integration**
+- 16 industrial sensors across 4 production lines
+- Real-time monitoring and control
+- Sensor health status tracking
+- Toggle sensors on/off
+- Network statistics dashboard
 
 ## 🚀 **Setup & Deployment**
 

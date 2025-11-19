@@ -56,6 +56,7 @@ NODE_ENV=production
 DATABASE_URL=postgresql://user:password@db:5432/predictive_maintenance
 MODEL_PATH=/app/models/xgboost_model.pkl
 FEATURE_STORE_URL=redis://redis:6379
+SENSOR_UPDATE_INTERVAL=2
 ```
 
 ## Scaling
@@ -64,6 +65,7 @@ FEATURE_STORE_URL=redis://redis:6379
 - Frontend: Scale by adding more instances behind a load balancer
 - Backend: Scale API and model serving independently
 - Database: Consider read replicas for high read throughput
+- IoT Processing: Scale sensor data processing workers
 
 ### Vertical Scaling
 - Increase CPU/memory for model serving
@@ -75,6 +77,7 @@ FEATURE_STORE_URL=redis://redis:6379
 - Prometheus for metrics collection
 - Grafana for visualization
 - Configure alerts for critical metrics
+- IoT sensor health monitoring
 
 ### Logging
 - Centralized logging with ELK stack or similar
@@ -87,6 +90,7 @@ FEATURE_STORE_URL=redis://redis:6379
 - Regular database backups
 - Model versioning with DVC
 - Configuration backup
+- IoT sensor data archiving
 
 ### Disaster Recovery
 - Multi-region deployment for critical applications
@@ -111,11 +115,13 @@ FEATURE_STORE_URL=redis://redis:6379
 - Regular dependency updates
 - Security patches
 - Model retraining schedule
+- IoT sensor firmware updates
 
 ### Performance Tuning
 - Database indexing
 - Query optimization
 - Caching strategies
+- IoT data processing optimization
 
 ## Troubleshooting
 
@@ -124,6 +130,7 @@ FEATURE_STORE_URL=redis://redis:6379
    - Check database queries
    - Review model inference time
    - Check network latency
+   - Review IoT data processing pipeline
 
 2. **Memory Leaks**
    - Monitor memory usage
@@ -134,3 +141,8 @@ FEATURE_STORE_URL=redis://redis:6379
    - Verify network connectivity
    - Check firewall rules
    - Review connection pooling settings
+
+4. **IoT Sensor Problems**
+   - Check sensor network connectivity
+   - Review sensor data quality
+   - Verify sensor activation status

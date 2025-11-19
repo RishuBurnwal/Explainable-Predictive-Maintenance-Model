@@ -66,6 +66,7 @@ npm run dev
 2. Check that the dashboard shows **"Connected"** status
 3. Verify real-time data is updating (not demo data)
 4. Test navigation between sections
+5. Navigate to **http://localhost:5173/sensors** to access the IoT sensor dashboard
 
 ## 🎯 Quick Tips
 
@@ -116,6 +117,11 @@ cd "C:\Users\rishu\OneDrive\Desktop\Explainable Predictive Maintenance Model\Fro
 3. Verify firewall is not blocking the connections
 4. Check browser console for error messages
 
+### Sensors Not Showing
+1. Verify backend is running: `http://localhost:5000/`
+2. Check browser console (F12) for errors
+3. Test API: `python test_sensors.py`
+
 ## Development Commands
 
 ### Backend
@@ -156,6 +162,7 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed production setup instructions.
 3. **Monitor Real-time Data**: Watch the live charts and status updates
 4. **Test Predictions**: Upload sensor data or use generated samples
 5. **Review Explanations**: Check SHAP and LIME model explanations
+6. **Explore IoT Sensors**: Visit the Sensors page to control the 16 industrial sensors
 
 ## Support
 
@@ -166,6 +173,3 @@ If you encounter issues:
 4. Ensure all dependencies are correctly installed
 
 **Happy monitoring! 🎯**
-
-
-

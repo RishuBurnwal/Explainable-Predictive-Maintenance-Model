@@ -12,9 +12,10 @@
 - **AI Models:** XGBoost, LightGBM, Isolation Forest
 - **Explainability:** SHAP, LIME
 - **Data:** NASA Turbofan-inspired synthetic datasets
+- **IoT Integration:** Real-time sensor monitoring and control
 
 ### Q: Do I need real sensor data to use this?
-**A:** No! The system comes with **synthetic NASA Turbofan datasets** that simulate realistic engine sensor data. You can also connect your own sensor data via the API.
+**A:** No! The system comes with **synthetic NASA Turbofan datasets** that simulate realistic engine sensor data. You can also connect your own sensor data via the API, and the system now includes a complete **IoT sensor simulation network** with 16 industrial sensors.
 
 ## 🛠️ Installation & Setup
 
@@ -61,7 +62,7 @@ python app.py
 4. **Check firewall:** Make sure ports aren't blocked
 
 ### Q: I see "Demo Mode" everywhere. Is this normal?
-**A:** Yes! When the backend isn't connected, the frontend automatically switches to demo mode with mock data. Start the backend to see real predictions.
+**A:** Yes! When the backend isn't connected, the frontend automatically switches to demo mode with mock data. Start the backend to see real predictions. When sensors are active, you'll see "Connected - Using X Real Sensors" instead.
 
 ### Q: API requests are slow. How can I speed them up?
 **A:** 
@@ -116,11 +117,13 @@ python app.py
 - **Live feed:** Every 5 seconds when enabled
 - **Status cards:** Every 30 seconds  
 - **Manual refresh:** Available via refresh buttons
+- **Sensor page:** Every 5 seconds
 
 ### Q: Can I change the update intervals?
 **A:** Yes! Edit the intervals in the frontend components:
 - `DataVisualization.tsx`: Live feed interval
 - `Index.tsx`: Status card refresh interval
+- `Sensors.tsx`: Sensor page refresh interval
 
 ## 📊 Predictions & Results
 
@@ -276,6 +279,3 @@ CORS(app, origins=["http://localhost:8080", "your-domain.com"])
 ---
 
 🎉 **Happy monitoring!** Your predictive maintenance system should now be running smoothly.
-
-
-

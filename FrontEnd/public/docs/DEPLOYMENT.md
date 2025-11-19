@@ -480,6 +480,3 @@ jobs:
 ---
 
 🎉 **Your Explainable Predictive Maintenance system is now production-ready!**
-
-
-
