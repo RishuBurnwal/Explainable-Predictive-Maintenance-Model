@@ -13,13 +13,13 @@ Explainable Predictive Maintenance Model/
 │   │   │   ├── Navigation.tsx
 │   │   │   ├── StatusCard.tsx
 │   │   │   ├── DataVisualization.tsx
-│   │   │   └── ExplainabilityPanel.tsx
+│   │   │   ├── ExplainabilityPanel.tsx
+│   │   │   └── DashboardSidebar.tsx
 │   │   ├── pages/
 │   │   │   ├── Index.tsx
 │   │   │   ├── Documentation.tsx
-│   │   │   └── ...
+│   │   │   └── Sensors.tsx
 │   │   ├── hooks/
-│   │   ├── utils/
 │   │   └── assets/
 │   ├── public/
 │   ├── package.json
@@ -28,8 +28,18 @@ Explainable Predictive Maintenance Model/
 ├── Backend/
 │   ├── app.py
 │   ├── requirements.txt
+│   ├── AI/
+│   │   ├── model_manager.py
+│   │   ├── pretrained_models.py
+│   │   └── sensor_manager.py
+│   ├── api/
+│   │   ├── prediction_api.py
+│   │   ├── anomaly_api.py
+│   │   ├── explainability_api.py
+│   │   ├── data_api.py
+│   │   └── sensor_api.py
+│   ├── data/
 │   ├── models/
-│   ├── routes/
 │   └── utils/
 ├── models/
 │   ├── trained_models/
@@ -79,6 +89,8 @@ Explainable Predictive Maintenance Model/
 - Explainable AI insights
 - Interactive data visualization
 - Historical data analysis
+- IoT sensor integration
+- Real-time anomaly detection
 
 ## License
 

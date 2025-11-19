@@ -14,6 +14,7 @@ A cutting-edge software system for **Explainable Predictive Maintenance** with r
 - **📊 Real-time Dashboard**: Interactive React TypeScript frontend with 3D animations
 - **🔧 Robust Backend**: Flask-based REST API with comprehensive error handling
 - **⚡ Live Monitoring**: Real-time anomaly detection and system health monitoring
+- **📡 IoT Sensor Integration**: Real-time sensor data collection and processing
 - **🎨 Modern UI/UX**: Glass morphism design with smooth animations and responsive layout
 - **🔄 Cross-Platform**: Universal setup manager for Windows, Linux, and macOS
 
@@ -33,6 +34,7 @@ A cutting-edge software system for **Explainable Predictive Maintenance** with r
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
 │  │  Prediction API │ │ Explainability  │ │  Anomaly API    │   │
 │  │   (RUL/Risk)    │ │   API (SHAP)    │ │  (Isolation)    │   │
+│  │  Sensor API     │ │                 │ │                 │   │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -82,12 +84,15 @@ npm run dev
 Explainable Predictive Maintenance Model/
 ├── Backend/               # Flask backend
 │   ├── AI/                # ML models and training
-│   ├── api/               # API endpoints
+│   ├── api/               # API endpoints (prediction, anomaly, explainability, sensor)
 │   ├── data/              # Sample datasets
 │   └── models/            # Pretrained models
 ├── FrontEnd/              # React frontend
-│   ├── public/            # Static files
-│   └── src/               # Source code
+│   ├── src/               # Source code
+│   │   ├── components/    # UI components
+│   │   ├── pages/         # Page components (including Sensors page)
+│   │   └── hooks/         # Custom hooks
+│   └── public/            # Static files
 ├── documentation/         # Project documentation
 └── setup_manager.py       # Universal setup script
 ```
