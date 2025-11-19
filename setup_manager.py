@@ -247,6 +247,17 @@ class SetupManager:
             self.print_success("Backend server started in new window!")
             self.print_info("Backend running at: http://localhost:5000")
             time.sleep(2)  # Give server time to start
+            
+            # Ask if user wants to open in browser
+            try:
+                open_browser = input(f"{Colors.OKCYAN}Open backend in browser? (y/N): {Colors.ENDC}").strip().lower()
+                if open_browser in ['y', 'yes']:
+                    self.print_info("Opening backend in browser...")
+                    webbrowser.open("http://localhost:5000")
+                    self.print_success("Browser tab opened!")
+            except:
+                pass
+                
             return True
             
         except Exception as e:
@@ -310,6 +321,17 @@ class SetupManager:
             self.print_success("Frontend development server started in new window!")
             self.print_info("Frontend running at: http://localhost:5173")
             time.sleep(2)  # Give server time to start
+            
+            # Ask if user wants to open in browser
+            try:
+                open_browser = input(f"{Colors.OKCYAN}Open frontend in browser? (y/N): {Colors.ENDC}").strip().lower()
+                if open_browser in ['y', 'yes']:
+                    self.print_info("Opening frontend in browser...")
+                    webbrowser.open("http://localhost:5173")
+                    self.print_success("Browser tab opened!")
+            except:
+                pass
+                
             return True
             
         except FileNotFoundError:
@@ -354,18 +376,6 @@ class SetupManager:
         self.print_info("   - Frontend UI: http://localhost:5173")
         print()
         
-        # Option to open both in browser
-        try:
-            open_browser = input(f"{Colors.OKCYAN}Open both services in browser? (y/N): {Colors.ENDC}").strip().lower()
-            if open_browser in ['y', 'yes']:
-                self.print_info("Opening services in browser...")
-                webbrowser.open("http://localhost:5000")
-                time.sleep(1)
-                webbrowser.open("http://localhost:5173")
-                self.print_success("Browser tabs opened!")
-        except KeyboardInterrupt:
-            print()
-            
         return True
 
     def test_api(self):
@@ -420,114 +430,6 @@ class SetupManager:
         self.print_success("Complete setup finished successfully!")
         self.print_info("You can now use other options to start frontend, backend, or test API")
         return True
-
-    def installation_guide(self):
-        """Show installation guide"""
-        guide = f"""
-{Colors.HEADER}{Colors.BOLD}Installation Guide{Colors.ENDC}
-
-{Colors.OKBLUE}Prerequisites:{Colors.ENDC}
-1. Python 3.8+ (Download from: https://python.org)
-2. Node.js 16+ (Download from: https://nodejs.org)
-3. Git (Download from: https://git-scm.com)
-
-{Colors.OKBLUE}Platform-specific notes:{Colors.ENDC}
-
-{Colors.BOLD}Windows:{Colors.ENDC}
-- Make sure Python and Node.js are added to PATH
-- You may need to run as Administrator for some operations
-- Use PowerShell or Command Prompt
-
-{Colors.BOLD}Linux/macOS:{Colors.ENDC}
-- Make sure you have build tools installed
-- On Ubuntu/Debian: sudo apt install python3-venv python3-dev build-essential
-- On macOS: Install Xcode Command Line Tools
-
-{Colors.OKBLUE}Quick Start:{Colors.ENDC}
-1. Select 'Complete Setup' to install all dependencies
-2. Select 'Start Backend' to run the API server
-3. Select 'Start Frontend' to run the web interface
-4. Select 'Test API' to verify everything is working
-
-{Colors.OKBLUE}Manual Setup:{Colors.ENDC}
-Backend:
-  cd Backend
-  python -m venv venv
-  {self.get_activate_command()}
-  pip install -r requirements.txt
-  python app.py
-
-Frontend:
-  cd FrontEnd
-  npm install
-  npm run dev
-
-{Colors.OKBLUE}Troubleshooting:{Colors.ENDC}
-- If you get permission errors, try running as administrator/sudo
-- If ports are busy, check if services are already running
-- For Node.js issues, try clearing npm cache: npm cache clean --force
-- For Python issues, try recreating the virtual environment
-"""
-        print(guide)
-
-    def show_main_menu(self):
-        """Show the main menu - now automatically detects platform"""
-        # Auto-detect platform and go directly to options menu
-        self.platform = platform.system().lower()
-        self.show_options_menu()
-
-    def show_options_menu(self):
-        """Show the options menu"""
-        while True:
-            # Refresh platform detection
-            self.platform = platform.system().lower()
-            self.print_banner()
-            self.print_info(f"Platform: {self.platform.capitalize()}")
-            
-            menu = f"""
-{Colors.OKBLUE}{Colors.BOLD}Available Options:{Colors.ENDC}
-{Colors.OKCYAN}1.{Colors.ENDC} Start Frontend Development Server
-{Colors.OKCYAN}2.{Colors.ENDC} Start Backend API Server
-{Colors.OKCYAN}3.{Colors.ENDC} Run Both Frontend & Backend
-{Colors.OKCYAN}4.{Colors.ENDC} Test API Endpoints
-{Colors.OKCYAN}5.{Colors.ENDC} Complete Setup (Install Dependencies)
-{Colors.OKCYAN}6.{Colors.ENDC} Installation Guide
-{Colors.OKCYAN}7.{Colors.ENDC} Open Frontend in Browser
-{Colors.OKCYAN}8.{Colors.ENDC} Open Backend API in Browser
-{Colors.OKCYAN}9.{Colors.ENDC} Check System Requirements
-{Colors.OKCYAN}0.{Colors.ENDC} Exit
-
-Choose option (0-9): """
-
-            choice = input(menu).strip()
-            
-            if choice == "1":
-                self.start_frontend()
-            elif choice == "2":
-                self.start_backend()
-            elif choice == "3":
-                self.start_both_servers()
-            elif choice == "4":
-                self.test_api()
-            elif choice == "5":
-                self.complete_setup()
-            elif choice == "6":
-                self.installation_guide()
-            elif choice == "7":
-                self.print_info("Opening frontend in browser...")
-                webbrowser.open("http://localhost:5173")
-            elif choice == "8":
-                self.print_info("Opening backend API in browser...")
-                webbrowser.open("http://localhost:5000")
-            elif choice == "9":
-                self.check_system_requirements()
-            elif choice == "0":
-                self.print_info("Goodbye!")
-                sys.exit(0)
-            else:
-                self.print_error("Invalid choice. Please try again.")
-            
-            input("\nPress Enter to continue...")
 
     def check_system_requirements(self):
         """Check system requirements"""
@@ -586,6 +488,54 @@ Choose option (0-9): """
                 self.print_info("Please install Node.js from: https://nodejs.org/")
                 self.print_info("Check NODEJS_INSTALLATION_GUIDE.md for detailed instructions")
             self.print_info("Run system check again after installing missing requirements")
+
+    def show_main_menu(self):
+        """Show the main menu - now automatically detects platform"""
+        # Auto-detect platform and go directly to options menu
+        self.platform = platform.system().lower()
+        self.show_options_menu()
+
+    def show_options_menu(self):
+        """Show the options menu"""
+        while True:
+            # Refresh platform detection
+            self.platform = platform.system().lower()
+            self.print_banner()
+            self.print_info(f"Platform: {self.platform.capitalize()}")
+            
+            menu = f"""
+{Colors.OKBLUE}{Colors.BOLD}Available Options:{Colors.ENDC}
+{Colors.OKCYAN}1.{Colors.ENDC} Start Frontend Development Server
+{Colors.OKCYAN}2.{Colors.ENDC} Start Backend API Server
+{Colors.OKCYAN}3.{Colors.ENDC} Run Both Frontend & Backend
+{Colors.OKCYAN}4.{Colors.ENDC} Test API Endpoints
+{Colors.OKCYAN}5.{Colors.ENDC} Complete Setup (Install Dependencies)
+{Colors.OKCYAN}6.{Colors.ENDC} Check System Requirements
+{Colors.OKCYAN}0.{Colors.ENDC} Exit
+
+Choose option (0-6): """
+
+            choice = input(menu).strip()
+            
+            if choice == "1":
+                self.start_frontend()
+            elif choice == "2":
+                self.start_backend()
+            elif choice == "3":
+                self.start_both_servers()
+            elif choice == "4":
+                self.test_api()
+            elif choice == "5":
+                self.complete_setup()
+            elif choice == "6":
+                self.check_system_requirements()
+            elif choice == "0":
+                self.print_info("Goodbye!")
+                sys.exit(0)
+            else:
+                self.print_error("Invalid choice. Please try again.")
+            
+            input("\nPress Enter to continue...")
 
 def main():
     """Main entry point"""
