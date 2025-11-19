@@ -471,35 +471,10 @@ Frontend:
         print(guide)
 
     def show_main_menu(self):
-        """Show the main menu"""
-        while True:
-            self.print_banner()
-            
-            menu = f"""
-{Colors.OKBLUE}{Colors.BOLD}Select Platform:{Colors.ENDC}
-{Colors.OKCYAN}1.{Colors.ENDC} Windows
-{Colors.OKCYAN}2.{Colors.ENDC} Linux
-{Colors.OKCYAN}3.{Colors.ENDC} Auto-detect ({self.platform.capitalize()})
-{Colors.OKCYAN}4.{Colors.ENDC} Exit
-
-Choose option (1-4): """
-
-            choice = input(menu).strip()
-            
-            if choice == "1":
-                self.platform = "windows"
-                self.show_options_menu()
-            elif choice == "2":
-                self.platform = "linux"
-                self.show_options_menu()
-            elif choice == "3":
-                self.show_options_menu()
-            elif choice == "4":
-                self.print_info("Goodbye!")
-                sys.exit(0)
-            else:
-                self.print_error("Invalid choice. Please try again.")
-                input("Press Enter to continue...")
+        """Show the main menu - now automatically detects platform"""
+        # Auto-detect platform and go directly to options menu
+        self.platform = platform.system().lower()
+        self.show_options_menu()
 
     def show_options_menu(self):
         """Show the options menu"""
@@ -520,10 +495,9 @@ Choose option (1-4): """
 {Colors.OKCYAN}7.{Colors.ENDC} Open Frontend in Browser
 {Colors.OKCYAN}8.{Colors.ENDC} Open Backend API in Browser
 {Colors.OKCYAN}9.{Colors.ENDC} Check System Requirements
-{Colors.OKCYAN}10.{Colors.ENDC} Back to Platform Selection
 {Colors.OKCYAN}0.{Colors.ENDC} Exit
 
-Choose option (0-10): """
+Choose option (0-9): """
 
             choice = input(menu).strip()
             
@@ -547,8 +521,6 @@ Choose option (0-10): """
                 webbrowser.open("http://localhost:5000")
             elif choice == "9":
                 self.check_system_requirements()
-            elif choice == "10":
-                break
             elif choice == "0":
                 self.print_info("Goodbye!")
                 sys.exit(0)
