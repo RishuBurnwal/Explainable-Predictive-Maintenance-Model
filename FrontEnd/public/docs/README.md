@@ -24,6 +24,7 @@ A cutting-edge software system for **Explainable Predictive Maintenance** with r
 - **📊 Real-time Dashboard**: Interactive React TypeScript frontend with 3D animations
 - **🔧 Robust Backend**: Flask-based REST API with comprehensive error handling
 - **⚡ Live Monitoring**: Real-time anomaly detection and system health monitoring
+- **📡 IoT Sensor Integration**: Real-time sensor data collection and processing
 - **🎨 Modern UI/UX**: Glass morphism design with smooth animations and responsive layout
 - **🔄 Cross-Platform Setup**: Universal setup manager for Windows, Linux, and macOS
 
@@ -45,6 +46,7 @@ A cutting-edge software system for **Explainable Predictive Maintenance** with r
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
 │  │  Prediction API │ │ Explainability  │ │  Anomaly API    │   │
 │  │   (RUL/Risk)    │ │   API (SHAP)    │ │  (Isolation)    │   │
+│  │  Sensor API     │ │                 │ │                 │   │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                                 │
@@ -79,10 +81,11 @@ Explainable Predictive Maintenance Model/          # Root Project
 │   │   │   ├── DataVisualization.tsx # Interactive charts & graphs
 │   │   │   ├── ExplainabilityPanel.tsx # SHAP/LIME visualizations
 │   │   │   ├── AlertCard.tsx        # Smart alert notifications
-│   │   │   └── ui/                  # Shadcn/ui component library
+│   │   │   └── DashboardSidebar.tsx # Navigation sidebar
 │   │   ├── pages/
 │   │   │   ├── Index.tsx            # Main dashboard
 │   │   │   ├── Documentation.tsx    # Interactive documentation
+│   │   │   ├── Sensors.tsx         # IoT sensor monitoring
 │   │   │   └── NotFound.tsx         # 404 error page
 │   │   ├── lib/
 │   │   │   ├── api.ts              # TypeScript API client
@@ -96,12 +99,14 @@ Explainable Predictive Maintenance Model/          # Root Project
 │   ├── AI/                        # Machine Learning modules
 │   │   ├── model_manager.py       # Model lifecycle management
 │   │   ├── explainability.py     # SHAP/LIME implementations
+│   │   ├── sensor_manager.py     # IoT sensor data management
 │   │   └── pretrained_models.py  # Pre-trained model definitions
 │   ├── api/                       # REST API endpoints
 │   │   ├── prediction_api.py      # RUL & risk prediction endpoints
 │   │   ├── explainability_api.py  # Explainability endpoints
 │   │   ├── anomaly_api.py         # Anomaly detection endpoints
-│   │   └── data_api.py           # Data management endpoints
+│   │   ├── data_api.py           # Data management endpoints
+│   │   └── sensor_api.py         # IoT sensor data endpoints
 │   ├── app.py                    # Main Flask application
 │   ├── requirements.txt          # Python dependencies
 │   └── test_api.py              # Comprehensive API testing
@@ -175,6 +180,12 @@ Explainable Predictive Maintenance Model/          # Root Project
 - **Data Validation**: Comprehensive sensor data validation
 - **Preprocessing**: Automated data cleaning and normalization
 - **Export Capabilities**: JSON and CSV data export
+
+### **6. IoT Sensor Integration**
+- **Real-time Data Collection**: Live sensor data ingestion
+- **Sensor Management**: Multi-sensor configuration and monitoring
+- **Data Processing**: Real-time sensor data preprocessing
+- **Visualization**: Sensor-specific dashboards and alerts
 
 ## 🚀 **Getting Started**
 
