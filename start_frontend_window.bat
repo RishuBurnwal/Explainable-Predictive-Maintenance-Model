@@ -15,7 +15,7 @@ if not exist node_modules (
 )
 
 REM Start the development server
-echo Starting Vite development server on http://localhost:5173
+echo Starting Vite development server on http://localhost:8080
 npm run dev
 
 echo.

@@ -11,7 +11,10 @@ import platform
 import json
 import time
 import webbrowser
+import hashlib
+import requests
 from pathlib import Path
+from urllib.parse import urljoin
 
 class Colors:
     """Console colors for better output formatting"""
@@ -31,6 +34,7 @@ class SetupManager:
         self.project_root = Path(__file__).parent.absolute()
         self.frontend_path = self.project_root / "FrontEnd"
         self.backend_path = self.project_root / "Backend"
+        self.github_repo_url = "https://api.github.com/repos/RishuBurnwal/Explainable-Predictive-Maintenance-Model"
         
     def print_banner(self):
         """Print application banner"""
@@ -319,7 +323,7 @@ class SetupManager:
                     subprocess.Popen(["npm", "run", "dev"], cwd=self.frontend_path, shell=True)
             
             self.print_success("Frontend development server started in new window!")
-            self.print_info("Frontend running at: http://localhost:5173")
+            self.print_info("Frontend running at: http://localhost:8080")
             time.sleep(2)  # Give server time to start
             
             # Ask if user wants to open in browser
@@ -327,7 +331,7 @@ class SetupManager:
                 open_browser = input(f"{Colors.OKCYAN}Open frontend in browser? (y/N): {Colors.ENDC}").strip().lower()
                 if open_browser in ['y', 'yes']:
                     self.print_info("Opening frontend in browser...")
-                    webbrowser.open("http://localhost:5173")
+                    webbrowser.open("http://localhost:8080")
                     self.print_success("Browser tab opened!")
             except:
                 pass
@@ -373,7 +377,7 @@ class SetupManager:
         print()
         self.print_info("Available services:")
         self.print_info("   - Backend API: http://localhost:5000")
-        self.print_info("   - Frontend UI: http://localhost:5173")
+        self.print_info("   - Frontend UI: http://localhost:8080")
         print()
         
         return True
@@ -489,6 +493,158 @@ class SetupManager:
                 self.print_info("Check NODEJS_INSTALLATION_GUIDE.md for detailed instructions")
             self.print_info("Run system check again after installing missing requirements")
 
+    def calculate_file_hash(self, file_path):
+        """Calculate SHA256 hash of a file"""
+        try:
+            hash_sha256 = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_sha256.update(chunk)
+            return hash_sha256.hexdigest()
+        except Exception as e:
+            self.print_error(f"Error calculating hash for {file_path}: {e}")
+            return None
+
+    def get_github_file_list(self):
+        """Get list of files from GitHub repository"""
+        try:
+            # Get the default branch
+            repo_response = requests.get(self.github_repo_url)
+            if repo_response.status_code != 200:
+                self.print_error("Failed to access repository information")
+                return None
+                
+            default_branch = repo_response.json().get("default_branch", "main")
+            
+            # Get file tree
+            tree_url = f"{self.github_repo_url}/git/trees/{default_branch}?recursive=1"
+            response = requests.get(tree_url)
+            
+            if response.status_code == 200:
+                tree = response.json().get("tree", [])
+                # Filter only files (not directories)
+                files = [item for item in tree if item.get("type") == "blob"]
+                return files
+            else:
+                self.print_error(f"Failed to fetch file list from GitHub: {response.status_code}")
+                return None
+        except Exception as e:
+            self.print_error(f"Error fetching file list from GitHub: {e}")
+            return None
+
+    def download_file_from_github(self, file_path):
+        """Download a file from GitHub"""
+        try:
+            # First try to get the default branch
+            try:
+                repo_response = requests.get(self.github_repo_url)
+                if repo_response.status_code == 200:
+                    default_branch = repo_response.json().get("default_branch", "main")
+                else:
+                    default_branch = "main"
+            except:
+                default_branch = "main"
+            
+            raw_url = f"https://raw.githubusercontent.com/RishuBurnwal/Explainable-Predictive-Maintenance-Model/{default_branch}/{file_path}"
+            response = requests.get(raw_url)
+            
+            if response.status_code == 200:
+                local_file_path = self.project_root / file_path
+                # Create directories if they don't exist
+                local_file_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                with open(local_file_path, "wb") as f:
+                    f.write(response.content)
+                return True
+            else:
+                self.print_error(f"Failed to download {file_path}: {response.status_code}")
+                return False
+        except Exception as e:
+            self.print_error(f"Error downloading {file_path}: {e}")
+            return False
+
+    def update_from_github(self):
+        """Update missing or outdated files from GitHub"""
+        self.print_info("Checking for updates from GitHub...")
+        
+        # Check if git is available
+        git_available = self.run_command(["git", "--version"])[0]
+        if git_available:
+            self.print_info("Git detected. Using git pull for updates...")
+            return self.update_via_git()
+        
+        # If git is not available, use manual file comparison
+        self.print_info("Git not detected. Using manual file comparison...")
+        
+        github_files = self.get_github_file_list()
+        if not github_files:
+            self.print_error("Could not retrieve file list from GitHub")
+            return False
+            
+        files_updated = 0
+        files_added = 0
+        
+        for github_file in github_files:
+            file_path = github_file.get("path", "")
+            # Skip directories
+            if not file_path or file_path.endswith("/"):
+                continue
+                
+            local_file_path = self.project_root / file_path
+            
+            # If file doesn't exist locally, download it
+            if not local_file_path.exists():
+                self.print_info(f"Downloading missing file: {file_path}")
+                if self.download_file_from_github(file_path):
+                    files_added += 1
+                continue
+                
+            # If file exists, compare content by downloading and comparing
+            temp_file_path = local_file_path.with_suffix(local_file_path.suffix + ".tmp")
+            try:
+                if self.download_file_from_github(file_path):
+                    # Compare file content
+                    local_hash = self.calculate_file_hash(local_file_path)
+                    temp_hash = self.calculate_file_hash(temp_file_path)
+                    
+                    if temp_hash and temp_hash != local_hash:
+                        self.print_info(f"Updating outdated file: {file_path}")
+                        # Replace local file with downloaded version
+                        temp_file_path.rename(local_file_path)
+                        files_updated += 1
+                    else:
+                        # Clean up temp file if no update needed
+                        temp_file_path.unlink(missing_ok=True)
+            except Exception as e:
+                self.print_error(f"Error comparing {file_path}: {e}")
+                if temp_file_path.exists():
+                    temp_file_path.unlink(missing_ok=True)
+        
+        self.print_success(f"Update complete! Added {files_added} files, updated {files_updated} files.")
+        return True
+
+    def update_via_git(self):
+        """Update using git pull"""
+        try:
+            self.print_info("Fetching latest changes...")
+            success, stdout, stderr = self.run_command(["git", "fetch"], cwd=self.project_root)
+            if not success:
+                self.print_error(f"Failed to fetch: {stderr}")
+                return False
+                
+            self.print_info("Pulling latest changes...")
+            success, stdout, stderr = self.run_command(["git", "pull"], cwd=self.project_root)
+            if success:
+                self.print_success("Repository updated successfully!")
+                print(stdout)
+                return True
+            else:
+                self.print_error(f"Failed to pull updates: {stderr}")
+                return False
+        except Exception as e:
+            self.print_error(f"Error during git update: {e}")
+            return False
+
     def show_main_menu(self):
         """Show the main menu - now automatically detects platform"""
         # Auto-detect platform and go directly to options menu
@@ -511,9 +667,10 @@ class SetupManager:
 {Colors.OKCYAN}4.{Colors.ENDC} Test API Endpoints
 {Colors.OKCYAN}5.{Colors.ENDC} Complete Setup (Install Dependencies)
 {Colors.OKCYAN}6.{Colors.ENDC} Check System Requirements
+{Colors.OKCYAN}7.{Colors.ENDC} Update from GitHub
 {Colors.OKCYAN}0.{Colors.ENDC} Exit
 
-Choose option (0-6): """
+Choose option (0-7): """
 
             choice = input(menu).strip()
             
@@ -529,6 +686,8 @@ Choose option (0-6): """
                 self.complete_setup()
             elif choice == "6":
                 self.check_system_requirements()
+            elif choice == "7":
+                self.update_from_github()
             elif choice == "0":
                 self.print_info("Goodbye!")
                 sys.exit(0)

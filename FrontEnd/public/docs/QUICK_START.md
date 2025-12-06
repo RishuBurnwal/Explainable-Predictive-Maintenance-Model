@@ -13,7 +13,7 @@ python setup_manager.py
 
 This will automatically:
 - Start backend server (http://localhost:5000)
-- Start frontend server (http://localhost:5173)
+- Start frontend server (http://localhost:8080)
 - Optionally open both in your browser
 
 ---
@@ -58,15 +58,15 @@ npm install
 npm run dev
 ```
 
-**Frontend will be available at: http://localhost:5173**
+**Frontend will be available at: http://localhost:8080**
 
 ### 3. Verify Connection
 
-1. Open your browser to **http://localhost:5173**
+1. Open your browser to **http://localhost:8080**
 2. Check that the dashboard shows **"Connected"** status
 3. Verify real-time data is updating (not demo data)
 4. Test navigation between sections
-5. Navigate to **http://localhost:5173/sensors** to access the IoT sensor dashboard
+5. Navigate to **http://localhost:8080/sensors** to access the IoT sensor dashboard
 
 ## 🎯 Quick Tips
 

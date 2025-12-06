@@ -14,13 +14,17 @@ Explainable Predictive Maintenance Model/
 │   │   │   ├── StatusCard.tsx
 │   │   │   ├── DataVisualization.tsx
 │   │   │   ├── ExplainabilityPanel.tsx
-│   │   │   └── DashboardSidebar.tsx
+│   │   │   ├── DashboardSidebar.tsx
+│   │   │   ├── AlertCard.tsx
+│   │   │   └── Sensors.tsx
 │   │   ├── pages/
 │   │   │   ├── Index.tsx
 │   │   │   ├── Documentation.tsx
-│   │   │   └── Sensors.tsx
-│   │   ├── hooks/
-│   │   └── assets/
+│   │   │   ├── Sensors.tsx
+│   │   │   └── NotFound.tsx
+│   │   ├── lib/
+│   │   │   └── api.ts
+│   │   └── hooks/
 │   ├── public/
 │   ├── package.json
 │   ├── vite.config.ts
@@ -41,6 +45,8 @@ Explainable Predictive Maintenance Model/
 │   ├── data/
 │   ├── models/
 │   └── utils/
+│       ├── config.py
+│       └── logger.py
 ├── models/
 │   ├── trained_models/
 │   │   ├── xgboost_model.pkl
@@ -54,9 +60,12 @@ Explainable Predictive Maintenance Model/
 │       ├── data_preprocessing.ipynb
 │       ├── model_training.ipynb
 │       └── evaluation.ipynb
-└── documentation/
-    ├── README.md
-    └── LICENSE
+├── documentation/
+│   ├── README.md
+│   └── LICENSE
+├── setup_manager.py
+├── test_sensors.py
+└── IOT_SENSORS_GUIDE.md
 ```
 
 ## Getting Started
@@ -65,6 +74,7 @@ Explainable Predictive Maintenance Model/
 - Node.js (v16 or later)
 - Python (v3.8 or later)
 - npm or yarn
+- Git
 
 ### Installation
 
@@ -82,6 +92,14 @@ Explainable Predictive Maintenance Model/
    python app.py
    ```
 
+### Quick Start with Setup Manager
+```bash
+# Run the universal setup manager
+python setup_manager.py
+
+# Select option 3: "Run Both Frontend & Backend"
+```
+
 ## Features
 
 - Real-time equipment monitoring
@@ -91,6 +109,70 @@ Explainable Predictive Maintenance Model/
 - Historical data analysis
 - IoT sensor integration
 - Real-time anomaly detection
+- Sensor network management
+- Live sensor data streaming
+- Sensor health monitoring
+
+## IoT Sensor Network
+
+The system includes a complete industrial IoT sensor network with:
+
+- **16 Industrial Sensors** across 4 production lines
+- **Real-time Data Streaming** with 2-second update intervals
+- **Sensor Control Interface** with toggle switches
+- **Health Monitoring** with status indicators
+- **Production Line A**: Turbofan Engines (6 sensors)
+- **Production Line B**: Hydraulic Systems (3 sensors)
+- **Production Line C**: Electric Motors (3 sensors)
+- **Quality Control & Cooling**: (4 sensors)
+
+## Technology Stack
+
+### Frontend
+- React 18 with TypeScript
+- Vite for development
+- TailwindCSS for styling
+- Shadcn/ui components
+- Recharts for visualizations
+- React Router for navigation
+
+### Backend
+- Flask REST API
+- Python 3.8+
+- NumPy & Pandas
+- Scikit-learn
+- XGBoost & LightGBM
+- SHAP & LIME
+- Flask-CORS
+
+### Machine Learning Models
+- **RUL Prediction**: XGBoost model
+- **Failure Prediction**: LightGBM classifier
+- **Anomaly Detection**: Isolation Forest
+
+## API Endpoints
+
+### Prediction API
+- `POST /api/v1/prediction/rul` - RUL prediction
+- `POST /api/v1/prediction/failure-risk` - Failure risk classification
+- `POST /api/v1/prediction/batch` - Batch predictions
+
+### Explainability API
+- `POST /api/v1/explainability/shap` - SHAP explanations
+- `POST /api/v1/explainability/lime` - LIME explanations
+
+### Anomaly API
+- `POST /api/v1/anomaly/detect` - Anomaly detection
+
+### Sensor API
+- `GET /api/v1/sensors/sensors` - Get all sensors
+- `GET /api/v1/sensors/sensors/{id}` - Get specific sensor
+- `POST /api/v1/sensors/sensors/{id}/toggle` - Toggle sensor
+- `GET /api/v1/sensors/sensors/statistics` - Network statistics
+- `POST /api/v1/sensors/sensors/predict` - Predictions from sensors
+
+### Data API
+- `POST /api/v1/data/generate-sample` - Generate sample data
 
 ## License
 

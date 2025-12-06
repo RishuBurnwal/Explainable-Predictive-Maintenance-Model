@@ -25,6 +25,9 @@ A cutting-edge software system for **Explainable Predictive Maintenance** with r
 - **🔧 Robust Backend**: Flask-based REST API with comprehensive error handling
 - **⚡ Live Monitoring**: Real-time anomaly detection and system health monitoring
 - **📡 IoT Sensor Integration**: Real-time sensor data collection and processing
+- **🏭 Industrial IoT Network**: 16 sensors across 4 production lines
+- **🎛️ Sensor Control**: Toggle sensors on/off, adjust age/degradation settings
+- **📈 Live Sensor Data**: Real-time sensor readings with status indicators
 - **🎨 Modern UI/UX**: Glass morphism design with smooth animations and responsive layout
 - **🔄 Cross-Platform Setup**: Universal setup manager for Windows, Linux, and macOS
 
@@ -58,6 +61,18 @@ A cutting-edge software system for **Explainable Predictive Maintenance** with r
 │  │ (RUL Predictor) │ │ (Risk Classifier│ │ (Anomaly Detect)│   │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────────┐
+│                    IoT SENSOR NETWORK                           │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
+│  │ Turbofan Engine │ │ Hydraulic       │ │ Electric Motors │   │
+│  │ Sensors (6)     │ │ Sensors (3)     │ │ Sensors (3)     │   │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
+│  ┌─────────────────┐ ┌─────────────────┐                      │
+│  │ Quality Control │ │ Cooling System  │                      │
+│  │ Sensors (2)     │ │ Sensors (2)     │                      │
+│  └─────────────────┘ └─────────────────┘                      │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## 📁 **Project Structure**
@@ -69,8 +84,8 @@ Explainable Predictive Maintenance Model/          # Root Project
 │   ├── setup_manager.py              # Universal setup manager by Rishu
 │   ├── setup.bat                     # Windows launcher
 │   ├── setup.sh                      # Linux/macOS launcher
-│   ├── SETUP_README.md               # Comprehensive setup guide
-│   └── QUICK_START.md                # Quick start instructions
+│   ├── test_sensors.py              # IoT sensor testing script
+│   └── IOT_SENSORS_GUIDE.md         # Comprehensive sensor documentation
 │
 ├── 🎨 Frontend/ (React + TypeScript)
 │   ├── src/
@@ -81,7 +96,8 @@ Explainable Predictive Maintenance Model/          # Root Project
 │   │   │   ├── DataVisualization.tsx # Interactive charts & graphs
 │   │   │   ├── ExplainabilityPanel.tsx # SHAP/LIME visualizations
 │   │   │   ├── AlertCard.tsx        # Smart alert notifications
-│   │   │   └── DashboardSidebar.tsx # Navigation sidebar
+│   │   │   ├── DashboardSidebar.tsx # Navigation sidebar
+│   │   │   └── Sensors.tsx         # IoT sensor dashboard
 │   │   ├── pages/
 │   │   │   ├── Index.tsx            # Main dashboard
 │   │   │   ├── Documentation.tsx    # Interactive documentation
@@ -142,6 +158,16 @@ Explainable Predictive Maintenance Model/          # Root Project
 - **SHAP & LIME** for explainable AI capabilities
 - **Flask-CORS** for cross-origin resource sharing
 
+### **IoT Sensor Network**
+- **16 Industrial Sensors** across 4 production lines
+- **Real-time Data Streaming** with 2-second intervals
+- **Sensor Health Monitoring** with status indicators
+- **Control Interface** with toggle switches and age adjustment
+- **Production Line A**: Turbofan Engines (6 sensors)
+- **Production Line B**: Hydraulic Systems (3 sensors)
+- **Production Line C**: Electric Motors (3 sensors)
+- **Quality Control & Cooling**: (4 sensors)
+
 ### **Development & DevOps**
 - **Universal Setup Manager** for cross-platform deployment
 - **Comprehensive Testing** with automated API validation
@@ -186,6 +212,7 @@ Explainable Predictive Maintenance Model/          # Root Project
 - **Sensor Management**: Multi-sensor configuration and monitoring
 - **Data Processing**: Real-time sensor data preprocessing
 - **Visualization**: Sensor-specific dashboards and alerts
+- **Control Interface**: Toggle sensors on/off with status feedback
 
 ## 🚀 **Getting Started**
 
@@ -222,7 +249,8 @@ npm run dev
 ```
 
 ### **Access the Application**
-- **Frontend Dashboard**: http://localhost:5173
+- **Frontend Dashboard**: http://localhost:8080
+- **Sensors Page**: http://localhost:8080/sensors
 - **Backend API**: http://localhost:5000
 - **API Documentation**: http://localhost:5000 (health check)
 
@@ -269,6 +297,7 @@ This project is developed by **Rishu Burnwal** and is licensed under the MIT Lic
 - **NASA Turbofan Engine Degradation Simulation Dataset** for training data
 - **Open Source Community** for excellent libraries and tools
 - **React & Flask Communities** for comprehensive documentation
+- **Industrial IoT Community** for sensor network best practices
 
 ---
 
